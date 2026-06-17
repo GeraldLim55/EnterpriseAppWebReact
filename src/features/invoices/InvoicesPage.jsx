@@ -1,0 +1,868 @@
+import { useState, useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate, useParams, Link } from 'react-router-dom'
+import { useForm, useFieldArray, Controller } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { Plus, Download, Trash2, ArrowLeft, FileText } from 'lucide-react'
+import { invoicesApi, itemsApi, locationsApi, companyApi, paymentTermsApi } from '@/api'
+import { PageHeader } from '@/components/layout'
+import {
+  Button, Input, Select, Textarea, Badge, Table, Pagination,
+  SearchInput, ConfirmDialog, Card, CardHeader, Empty, Spinner, Modal,
+} from '@/components/ui'
+import { formatCurrency, formatDate, downloadBlob } from '@/lib/utils'
+import toast from 'react-hot-toast'
+
+// ─── Status helpers ───────────────────────────────────────────────────────
+const STATUS_LABELS = { 0: 'Draft', 1: 'Pending', 2: 'Paid', 3: 'Cancelled', 4: 'Overdue' }
+const STATUS_VARIANTS = {
+  0: 'default', 1: 'info', 2: 'success', 3: 'danger', 4: 'warning',
+}
+
+function StatusBadge({ status }) {
+  return <Badge variant={STATUS_VARIANTS[status]} dot>{STATUS_LABELS[status]}</Badge>
+}
+
+// ─── Invoices List Page ───────────────────────────────────────────────────
+export default function InvoicesPage() {
+  const navigate = useNavigate()
+  const qc = useQueryClient()
+
+  const [filters, setFilters] = useState({ page: 1, pageSize: 20 })
+  const [search, setSearch] = useState('')
+  const [deleteId, setDeleteId] = useState(null)
+  const [exporting, setExporting] = useState(false)
+
+  const { data: res, isLoading } = useQuery({
+    queryKey: ['invoices', filters],
+    queryFn: () => invoicesApi.getAll({ ...filters, search: search || undefined }).then(r => r.data),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => invoicesApi.delete(id),
+    onSuccess: () => {
+      toast.success('Invoice deleted')
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      setDeleteId(null)
+    },
+    onError: (err) => {
+      const msg = err?.response?.data?.message ?? 'Failed to delete'
+      toast.error(msg)
+    },
+  })
+
+  const handleExport = async (format) => {
+    setExporting(true)
+    try {
+      const res = await invoicesApi.export(filters, format)
+      const ext = { Excel: '.xlsx', Csv: '.csv', Pdf: '.pdf' }[format]
+      downloadBlob(res.data, `invoices-${Date.now()}${ext}`)
+      toast.success('Export downloaded')
+    } catch { toast.error('Export failed') } finally { setExporting(false) }
+  }
+
+  const columns = [
+    { key: 'invoiceNumber', header: 'Invoice #', sortable: true,
+      render: (row) => (
+        <Link to={`/invoices/${row.id}`} className="font-mono text-sm font-semibold text-brand-600 hover:text-brand-700">
+          {row.invoiceNumber}
+        </Link>
+      )
+    },
+    { key: 'invoiceDate', header: 'Date', sortable: true,
+      render: (row) => formatDate(row.invoiceDate)
+    },
+    { key: 'customerName', header: 'Customer',
+      render: (row) => <span className="text-sm">{row.customerName ?? '—'}</span>
+    },
+    { key: 'totalAmount', header: 'Amount', sortable: true, align: 'right',
+      render: (row) => <span className="font-semibold">{formatCurrency(row.totalAmount)}</span>
+    },
+    { key: 'status', header: 'Status',
+      render: (row) => <StatusBadge status={row.status} />
+    },
+    { key: 'dueDate', header: 'Due',
+      render: (row) => row.dueDate ? (
+        <span className={row.status === 4 ? 'text-red-600 text-sm font-medium' : 'text-sm text-gray-600'}>
+          {formatDate(row.dueDate)}
+        </span>
+      ) : '—'
+    },
+    { key: 'updatedDate', header: 'Updated',
+      render: (row) => <span className="text-sm text-gray-500">{row.updatedDate ? formatDate(row.updatedDate) : '—'}</span>
+    },
+    { key: 'actions', header: '', width: '60px',
+      render: (row) => (
+        <button
+          onClick={() => setDeleteId(row.id)}
+          disabled={row.status === 2}
+          className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed"
+          title={row.status === 2 ? 'Paid invoices cannot be deleted' : 'Delete'}
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      )
+    },
+  ]
+
+  return (
+    <div>
+      <PageHeader
+        title="Invoices"
+        description="Create and manage customer invoices."
+        breadcrumbs={[{ label: 'Invoices' }]}
+        action={
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" leftIcon={<Download className="w-3.5 h-3.5" />} loading={exporting} onClick={() => handleExport('Excel')}>
+              Export
+            </Button>
+            <Button size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => navigate('/invoices/create')}>
+              New invoice
+            </Button>
+          </div>
+        }
+      />
+
+      <Card padding={false}>
+        <div className="flex flex-wrap items-center gap-3 p-4 border-b border-gray-100">
+          <SearchInput value={search} onChange={v => { setSearch(v); setFilters(p => ({ ...p, page: 1 })) }} placeholder="Invoice # or customer…" className="w-56" />
+          <Select
+            options={[
+              { value: '', label: 'All status' },
+              { value: '0', label: 'Draft' }, { value: '1', label: 'Pending' },
+              { value: '2', label: 'Paid' }, { value: '3', label: 'Cancelled' }, { value: '4', label: 'Overdue' },
+            ]}
+            value={filters.status ?? ''}
+            onChange={e => setFilters(p => ({ ...p, status: e.target.value !== '' ? Number(e.target.value) : undefined, page: 1 }))}
+            className="w-36"
+          />
+          <Input
+            type="date" placeholder="From"
+            value={filters.fromDate ?? ''}
+            onChange={e => setFilters(p => ({ ...p, fromDate: e.target.value || undefined, page: 1 }))}
+            className="w-36"
+          />
+          <Input
+            type="date" placeholder="To"
+            value={filters.toDate ?? ''}
+            onChange={e => setFilters(p => ({ ...p, toDate: e.target.value || undefined, page: 1 }))}
+            className="w-36"
+          />
+        </div>
+
+        <Table
+          columns={columns}
+          data={res?.data ?? []}
+          loading={isLoading}
+          rowKey={r => r.id}
+          sortBy={filters.sortBy}
+          sortDirection={filters.sortDirection}
+          onSort={key => setFilters(p => ({
+            ...p, sortBy: key,
+            sortDirection: p.sortBy === key && p.sortDirection === 'asc' ? 'desc' : 'asc',
+          }))}
+          emptyMessage="No invoices yet. Create your first invoice."
+        />
+        <Pagination
+          page={filters.page ?? 1}
+          pageSize={filters.pageSize ?? 20}
+          totalCount={res?.totalCount ?? 0}
+          totalPages={res?.totalPages ?? 0}
+          onPageChange={page => setFilters(p => ({ ...p, page }))}
+        />
+      </Card>
+
+      <ConfirmDialog
+        open={deleteId !== null}
+        onClose={() => setDeleteId(null)}
+        onConfirm={() => deleteId && deleteMutation.mutate(deleteId)}
+        title="Delete invoice"
+        message="This invoice will be permanently removed."
+        confirmLabel="Delete"
+        variant="danger"
+        loading={deleteMutation.isPending}
+      />
+    </div>
+  )
+}
+
+// ─── Invoice Create Schema ─────────────────────────────────────────────────
+const lineSchema = z.object({
+  itemId: z.coerce.number().optional(),
+  locationId: z.coerce.number().min(1, 'Location required').or(z.literal(0)).optional(),
+  itemName: z.string().min(1, 'Required'),
+  description: z.string().optional(),
+  quantity: z.coerce.number().int().min(1, 'Min 1'),
+  unitPrice: z.coerce.number().min(0.01, 'Must be > 0'),
+  discountPercent: z.coerce.number().min(0).max(100).default(0),
+})
+
+const invoiceSchema = z.object({
+  locationId: z.coerce.number().min(1, 'Location is required'),
+  invoiceDate: z.string().min(1, 'Invoice date is required'),
+  dueDate: z.string().optional(),
+  customerName: z.string().min(1, 'Customer name is required'),
+  customerEmail: z.string().email('Invalid email').optional().or(z.literal('')),
+  customerPhone: z.string().optional(),
+  customerAddress: z.string().optional(),
+  taxRate: z.coerce.number().min(0.01, 'Tax rate must be greater than 0').max(100),
+  discountAmount: z.coerce.number().min(0).default(0),
+  notes: z.string().optional(),
+  paymentTerms: z.string().optional(),
+  paymentNotes: z.string().optional(),
+  paymentReference: z.string().optional(),
+  details: z.array(lineSchema).min(1, 'Add at least one line item'),
+}).refine(
+  data => !data.dueDate || data.dueDate >= data.invoiceDate,
+  { message: 'Due date must be on or after invoice date', path: ['dueDate'] }
+)
+
+// ─── Invoice Create Page ──────────────────────────────────────────────────
+export function InvoiceCreatePage() {
+  const navigate = useNavigate()
+  const qc = useQueryClient()
+
+  const [activeTab, setActiveTab] = useState('Invoice')
+  const [confirmReplace, setConfirmReplace] = useState(null) // { locationId, locationName }
+
+  const { data: items = [] } = useQuery({
+    queryKey: ['items-lookup'],
+    queryFn: () => itemsApi.getLookup().then(r => r.data.data ?? []),
+    staleTime: 1000 * 60 * 5,
+  })
+
+  const { data: locations = [] } = useQuery({
+    queryKey: ['locations-lookup'],
+    queryFn: () => locationsApi.getLookup().then(r => r.data.data ?? []),
+    staleTime: 1000 * 60 * 5,
+  })
+
+  const { data: company } = useQuery({
+    queryKey: ['company-profile'],
+    queryFn: () => companyApi.get().then(r => r.data.data),
+    staleTime: 1000 * 60 * 10,
+  })
+
+  const { data: paymentTerms = [] } = useQuery({
+    queryKey: ['payment-terms-lookup'],
+    queryFn: () => paymentTermsApi.getLookup().then(r => r.data.data ?? []),
+    staleTime: 1000 * 60 * 5,
+  })
+
+  const { register, control, handleSubmit, watch, setValue, getValues, formState: { errors, isSubmitting } } = useForm({
+    resolver: zodResolver(invoiceSchema),
+    defaultValues: {
+      invoiceDate: new Date().toISOString().split('T')[0],
+      taxRate: 6, discountAmount: 0,
+      paymentTerms: company?.paymentTerms ?? '',
+      paymentNotes: company?.paymentNotes ?? '',
+      details: [{ itemName: '', quantity: 1, unitPrice: 0, discountPercent: 0 }],
+    },
+  })
+
+  const { fields, append, remove } = useFieldArray({ control, name: 'details' })
+
+  // Auto-select the default location once the lookup loads
+  useEffect(() => {
+    if (!locations.length) return
+    const def = locations.find(l => l.isDefault)
+    if (!def) return
+    setValue('locationId', def.id)
+    const details = getValues('details')
+    details.forEach((_, i) => setValue(`details.${i}.locationId`, def.id))
+  }, [locations]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-select the default payment term and calculate due date
+  useEffect(() => {
+    if (!paymentTerms.length) return
+    const def = paymentTerms.find(t => t.isDefault)
+    if (!def) return
+    setValue('paymentTerms', def.name)
+    if (def.dueDays != null) {
+      const invoiceDate = getValues('invoiceDate')
+      if (invoiceDate) {
+        const due = new Date(invoiceDate)
+        due.setDate(due.getDate() + def.dueDays)
+        setValue('dueDate', due.toISOString().split('T')[0])
+      }
+    }
+  }, [paymentTerms]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const watchedDetails = watch('details')
+  const watchedTax = watch('taxRate')
+  const watchedDiscount = watch('discountAmount')
+
+  const grossTotal = watchedDetails?.reduce((sum, d) =>
+    sum + (Number(d.quantity) * Number(d.unitPrice)), 0) ?? 0
+
+  const subTotal = watchedDetails?.reduce((sum, d) => {
+    const disc = 1 - (Number(d.discountPercent) / 100)
+    return sum + (Number(d.quantity) * Number(d.unitPrice) * disc)
+  }, 0) ?? 0
+
+  const lineDiscountTotal = grossTotal - subTotal
+  const masterDiscount = Number(watchedDiscount) || 0
+  const taxAmount = subTotal * ((Number(watchedTax) || 0) / 100)
+  const total = subTotal + taxAmount - masterDiscount
+
+  const mutation = useMutation({
+    mutationFn: (data) => invoicesApi.create(data),
+    onSuccess: (res) => {
+      toast.success(`Invoice ${res.data.data?.invoiceNumber} created`)
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      navigate('/invoices')
+    },
+    onError: () => toast.error('Failed to create invoice'),
+  })
+
+  const handleItemSelect = (index, itemId) => {
+    const item = items.find(i => i.id === Number(itemId))
+    if (item) {
+      setValue(`details.${index}.itemId`, item.id)
+      setValue(`details.${index}.itemName`, item.name)
+      setValue(`details.${index}.unitPrice`, item.price)
+    }
+  }
+
+  // Called when master location changes — fills empty lines, prompts for lines that already have one
+  const handleMasterLocationChange = (e) => {
+    const locationId = e.target.value ? Number(e.target.value) : undefined
+    setValue('locationId', locationId)
+
+    if (!locationId) return
+
+    const details = getValues('details')
+    const hasExisting = details.some(d => d.locationId)
+
+    if (hasExisting) {
+      const loc = locations.find(l => l.id === locationId)
+      setConfirmReplace({ locationId, locationName: loc?.name ?? '' })
+    } else {
+      details.forEach((_, i) => setValue(`details.${i}.locationId`, locationId))
+    }
+  }
+
+  // Fill lines based on user's choice — replaceAll=true fills everything, false fills only empty ones
+  const applyLocationToDetails = (replaceAll) => {
+    const { locationId, details } = getValues()
+    details.forEach((d, i) => {
+      if (replaceAll || !d.locationId) {
+        setValue(`details.${i}.locationId`, locationId)
+      }
+    })
+    setConfirmReplace(null)
+  }
+
+  const locationOptions = [{ value: '', label: 'No location' }, ...locations.map(l => ({ value: l.id, label: l.city ? `${l.name} — ${l.city}` : l.name }))]
+
+  return (
+    <div>
+      <PageHeader
+        title="New invoice"
+        breadcrumbs={[{ label: 'Invoices', href: '/invoices' }, { label: 'New invoice' }]}
+        action={<Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="w-3.5 h-3.5" />} onClick={() => navigate(-1)}>Back</Button>}
+      />
+
+      <form onSubmit={handleSubmit(d => mutation.mutate(d))}>
+        <div className="flex flex-col gap-5">
+
+          {/* Row 1 — Tabbed: Invoice / Customer */}
+          <Card>
+            {/* Tab bar with error indicators */}
+            {(() => {
+              const tabErrors = {
+                Invoice: !!(errors.invoiceDate || errors.dueDate || errors.locationId || errors.taxRate),
+                Customer: !!(errors.customerName || errors.customerEmail),
+                Payment: false,
+              }
+              return (
+                <div className="flex gap-1 border-b border-gray-200 mb-4">
+                  {['Invoice', 'Customer', 'Payment'].map(tab => (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => setActiveTab(tab)}
+                      className={`relative px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                        activeTab === tab
+                          ? 'text-brand-600 border-b-2 border-brand-600 -mb-px'
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      {tab}
+                      {tabErrors[tab] && (
+                        <span className="absolute top-1.5 right-1 w-1.5 h-1.5 rounded-full bg-red-500" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )
+            })()}
+
+            {activeTab === 'Invoice' && (
+              <div className="grid grid-cols-2 gap-4">
+                <Input label="Invoice date" type="date" required error={errors.invoiceDate?.message} {...register('invoiceDate')} />
+                <Input label="Due date" type="date" error={errors.dueDate?.message} {...register('dueDate')} />
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">
+                    Location <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    className={`w-full h-9 rounded-lg border bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 ${
+                      errors.locationId ? 'border-red-400 ring-1 ring-red-400' : 'border-gray-300'
+                    }`}
+                    onChange={handleMasterLocationChange}
+                    value={watch('locationId') ?? ''}
+                  >
+                    {locationOptions.map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                  {errors.locationId && (
+                    <p className="text-xs text-red-500 mt-1">{errors.locationId.message}</p>
+                  )}
+                </div>
+                <Input label="Tax rate (%)" type="number" step="0.1" required error={errors.taxRate?.message} {...register('taxRate')} />
+                <Input label="Discount (MYR)" type="number" step="0.01" {...register('discountAmount')} />
+                <div className="col-span-2">
+                  <Textarea label="Notes" rows={2} {...register('notes')} />
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'Payment' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Payment terms</label>
+                  <select
+                    className="w-full h-9 rounded-lg border border-gray-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    value={watch('paymentTerms') ?? ''}
+                    onChange={e => {
+                      const name = e.target.value
+                      setValue('paymentTerms', name)
+                      const term = paymentTerms.find(t => t.name === name)
+                      if (term?.dueDays != null) {
+                        const invoiceDate = getValues('invoiceDate')
+                        if (invoiceDate) {
+                          const due = new Date(invoiceDate)
+                          due.setDate(due.getDate() + term.dueDays)
+                          setValue('dueDate', due.toISOString().split('T')[0])
+                        }
+                      }
+                    }}
+                  >
+                    <option value="">Select a term…</option>
+                    {paymentTerms.map(t => (
+                      <option key={t.id} value={t.name}>{t.name}{t.dueDays != null ? ` (${t.dueDays} days)` : ''}</option>
+                    ))}
+                  </select>
+                </div>
+                <Input label="Payment reference" placeholder="e.g. PO-12345" {...register('paymentReference')} />
+                <div className="col-span-2">
+                  <Textarea label="Payment notes (bank details, instructions)" rows={4} {...register('paymentNotes')} />
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'Customer' && (
+              <div className="grid grid-cols-2 gap-4">
+                <Input label="Customer name" required error={errors.customerName?.message} {...register('customerName')} />
+                <Input label="Customer email" type="email" error={errors.customerEmail?.message} {...register('customerEmail')} />
+                <Input label="Customer phone" {...register('customerPhone')} />
+                <div className="col-span-2">
+                  <Textarea label="Address" rows={2} {...register('customerAddress')} />
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {/* Row 2 — Line items */}
+          <Card>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-gray-900">Line items</h2>
+              <Button
+                type="button" size="sm" variant="outline"
+                leftIcon={<Plus className="w-3.5 h-3.5" />}
+                onClick={() => append({ itemName: '', quantity: 1, unitPrice: 0, discountPercent: 0 })}
+              >
+                Add line
+              </Button>
+            </div>
+
+            {fields.length === 0 ? (
+              <Empty icon={<FileText className="w-8 h-8" />} title="No line items" description="Add at least one item to this invoice." />
+            ) : (
+              <>
+                {/* Column headers */}
+                <div className="hidden sm:grid grid-cols-12 gap-2 px-3 mb-1 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  <div className="col-span-2">Item</div>
+                  <div className="col-span-2">Name</div>
+                  <div className="col-span-2">Location</div>
+                  <div className="col-span-1 text-center">Qty</div>
+                  <div className="col-span-2 text-right">Unit price</div>
+                  <div className="col-span-1 text-right">Disc %</div>
+                  <div className="col-span-1 text-right">Total</div>
+                  <div className="col-span-1" />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  {fields.map((field, index) => {
+                    const d = watchedDetails?.[index]
+                    const lineTotal = d ? Number(d.quantity) * Number(d.unitPrice) * (1 - Number(d.discountPercent) / 100) : 0
+                    return (
+                      <div key={field.id} className="grid grid-cols-12 gap-2 items-center px-3 py-2 bg-gray-50 rounded-lg">
+                        {/* Item picker */}
+                        <div className="col-span-12 sm:col-span-2">
+                          <select
+                            className="w-full h-9 rounded-lg border border-gray-300 bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                            onChange={e => handleItemSelect(index, e.target.value)}
+                            defaultValue=""
+                          >
+                            <option value="">Custom…</option>
+                            {items.map(item => (
+                              <option key={item.id} value={item.id}>{item.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        {/* Name */}
+                        <div className="col-span-12 sm:col-span-2">
+                          <Input
+                            placeholder="Item name"
+                            error={errors.details?.[index]?.itemName?.message}
+                            {...register(`details.${index}.itemName`)}
+                          />
+                        </div>
+                        {/* Line location */}
+                        <div className="col-span-12 sm:col-span-2">
+                          <select
+                            className="w-full h-9 rounded-lg border border-gray-300 bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                            {...register(`details.${index}.locationId`)}
+                          >
+                            {locationOptions.map(o => (
+                              <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                        {/* Qty */}
+                        <div className="col-span-4 sm:col-span-1">
+                          <Input type="number" min="1" placeholder="Qty"
+                            error={errors.details?.[index]?.quantity?.message}
+                            {...register(`details.${index}.quantity`)} />
+                        </div>
+                        {/* Unit price */}
+                        <div className="col-span-4 sm:col-span-2">
+                          <Input type="number" step="0.01" placeholder="0.00" className="text-right"
+                            error={errors.details?.[index]?.unitPrice?.message}
+                            {...register(`details.${index}.unitPrice`)} />
+                        </div>
+                        {/* Disc % */}
+                        <div className="col-span-3 sm:col-span-1">
+                          <Input type="number" step="0.1" placeholder="0" className="text-right" {...register(`details.${index}.discountPercent`)} />
+                        </div>
+                        {/* Line total — read-only */}
+                        <div className="col-span-4 sm:col-span-1 text-right text-sm font-semibold text-gray-800 pr-1">
+                          {formatCurrency(lineTotal)}
+                        </div>
+                        {/* Remove */}
+                        <div className="col-span-1 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => remove(index)}
+                            className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+              </>
+            )}
+            {errors.details?.message && (
+              <p className="text-xs text-red-500 mt-2">{errors.details.message}</p>
+            )}
+          </Card>
+
+          {/* Row 3 — Summary */}
+          <Card>
+            <div className="flex justify-end">
+            <div className="w-80">
+              <div className="flex flex-col gap-1.5 text-sm">
+                <div className="flex justify-between text-gray-500">
+                  <span>Gross</span><span className="font-medium text-gray-800">{formatCurrency(grossTotal)}</span>
+                </div>
+                {lineDiscountTotal > 0 && (
+                  <div className="flex justify-between text-gray-500">
+                    <span>Line discount</span><span className="font-medium text-red-500">−{formatCurrency(lineDiscountTotal)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-gray-500">
+                  <span>Subtotal</span><span className="font-medium text-gray-800">{formatCurrency(subTotal)}</span>
+                </div>
+                <div className="flex justify-between text-gray-500">
+                  <span>Tax ({Number(watchedTax) || 0}%)</span><span className="font-medium text-gray-800">{formatCurrency(taxAmount)}</span>
+                </div>
+                {masterDiscount > 0 && (
+                  <div className="flex justify-between text-gray-500">
+                    <span>Discount</span><span className="font-medium text-red-500">−{formatCurrency(masterDiscount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between pt-2 border-t border-gray-200 text-base font-bold text-gray-900">
+                  <span>Total</span><span>{formatCurrency(total)}</span>
+                </div>
+              </div>
+            </div>
+            </div>
+          </Card>
+
+          <div className="flex justify-end">
+            <Button type="submit" loading={isSubmitting} className="w-full">
+              Create invoice
+            </Button>
+          </div>
+
+        </div>
+      </form>
+
+      {/* Confirm replace existing line locations */}
+      <ConfirmDialog
+        open={confirmReplace !== null}
+        onClose={() => setConfirmReplace(null)}
+        onConfirm={() => applyLocationToDetails(true)}
+        title="Replace line item locations?"
+        message={`Some line items already have a location set. Replace them all with "${confirmReplace?.locationName}"? Empty lines will always be filled.`}
+        confirmLabel="Replace all"
+        cancelLabel="Fill empty only"
+        variant="warning"
+        onCancel={() => applyLocationToDetails(false)}
+      />
+    </div>
+  )
+}
+
+// ─── Invoice Detail Page ──────────────────────────────────────────────────
+export function InvoiceDetailPage() {
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const qc = useQueryClient()
+  const [showStatusModal, setShowStatusModal] = useState(false)
+
+  const { data: invoice, isLoading } = useQuery({
+    queryKey: ['invoice', id],
+    queryFn: () => invoicesApi.getById(Number(id)).then(r => r.data.data),
+    enabled: !!id,
+  })
+
+  const updateStatus = useMutation({
+    mutationFn: (status) =>
+      invoicesApi.update(Number(id), {
+        ...invoice,
+        details: invoice.details.map(d => ({
+          itemId: d.itemId, itemName: d.itemName, description: d.description,
+          quantity: d.quantity, unitPrice: d.unitPrice, discountPercent: d.discountPercent,
+        })),
+        status,
+      }),
+    onSuccess: () => {
+      toast.success('Status updated')
+      qc.invalidateQueries({ queryKey: ['invoice', id] })
+      setShowStatusModal(false)
+    },
+    onError: () => toast.error('Failed to update status'),
+  })
+
+  if (isLoading) return <div className="flex justify-center py-20"><Spinner size="lg" /></div>
+  if (!invoice) return <Empty title="Invoice not found" />
+
+  return (
+    <div>
+      <PageHeader
+        title={invoice.invoiceNumber}
+        breadcrumbs={[{ label: 'Invoices', href: '/invoices' }, { label: invoice.invoiceNumber }]}
+        action={
+          <div className="flex items-center gap-2">
+            <StatusBadge status={invoice.status} />
+            {invoice.status !== 2 && (
+              <Button size="sm" variant="outline" onClick={() => setShowStatusModal(true)}>Update status</Button>
+            )}
+            <Button size="sm" variant="ghost" leftIcon={<ArrowLeft className="w-3.5 h-3.5" />} onClick={() => navigate(-1)}>
+              Back
+            </Button>
+          </div>
+        }
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <Card>
+            <CardHeader title="Line items" />
+            <Table
+              columns={[
+                { key: 'itemName', header: 'Item',
+                  render: (r) => (
+                    <div><p className="text-sm font-medium text-gray-900">{r.itemName}</p>
+                    {r.description && <p className="text-xs text-gray-400">{r.description}</p>}</div>
+                  )
+                },
+                { key: 'locationName', header: 'Location',
+                  render: r => r.locationName ? <span className="text-sm text-gray-600">{r.locationName}</span> : <span className="text-gray-300">—</span>
+                },
+                { key: 'quantity', header: 'Qty', align: 'right' },
+                { key: 'unitPrice', header: 'Unit price', align: 'right',
+                  render: r => formatCurrency(r.unitPrice)
+                },
+                { key: 'discountPercent', header: 'Disc', align: 'right',
+                  render: r => r.discountPercent > 0 ? `${r.discountPercent}%` : '—'
+                },
+                { key: 'lineTotal', header: 'Total', align: 'right',
+                  render: r => <span className="font-semibold">{formatCurrency(r.lineTotal)}</span>
+                },
+              ]}
+              data={invoice.details}
+              rowKey={r => r.id}
+            />
+            <div className="mt-4 flex flex-col items-end gap-1 text-sm border-t border-gray-100 pt-4">
+              <div className="flex gap-16 text-gray-600"><span>Subtotal</span><span>{formatCurrency(invoice.subTotal)}</span></div>
+              <div className="flex gap-16 text-gray-600"><span>Tax ({invoice.taxRate}%)</span><span>{formatCurrency(invoice.taxAmount)}</span></div>
+              {invoice.discountAmount > 0 && (
+                <div className="flex gap-16 text-red-600"><span>Discount</span><span>−{formatCurrency(invoice.discountAmount)}</span></div>
+              )}
+              <div className="flex gap-16 font-semibold text-base text-gray-900 border-t border-gray-200 pt-1 mt-1">
+                <span>Total</span><span>{formatCurrency(invoice.totalAmount)}</span>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        <div className="flex flex-col gap-5">
+          <Card>
+            <CardHeader title="Invoice details" />
+            <dl className="text-sm flex flex-col gap-3">
+              {[
+                ['Invoice #', invoice.invoiceNumber],
+                ['Date', formatDate(invoice.invoiceDate)],
+                ['Due date', invoice.dueDate ? formatDate(invoice.dueDate) : '—'],
+                ['Location', invoice.locationName ?? '—'],
+              ].map(([label, value]) => (
+                <div key={label} className="flex justify-between gap-4">
+                  <dt className="text-gray-500">{label}</dt>
+                  <dd className="font-medium text-gray-900 text-right">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </Card>
+
+          {/* Customer */}
+          <Card>
+            <CardHeader title="Customer" />
+            <dl className="text-sm flex flex-col gap-3">
+              {[
+                ['Name', invoice.customerName ?? '—'],
+                ['Email', invoice.customerEmail ?? '—'],
+                ['Phone', invoice.customerPhone ?? '—'],
+                ['Address', invoice.customerAddress ?? '—'],
+              ].map(([label, value]) => (
+                <div key={label} className="flex justify-between gap-4">
+                  <dt className="text-gray-500 shrink-0">{label}</dt>
+                  <dd className="font-medium text-gray-900 text-right">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </Card>
+
+          {/* Seller snapshot — only show if stamped */}
+          {invoice.sellerName && (
+            <Card>
+              <CardHeader title="Seller" />
+              <dl className="text-sm flex flex-col gap-2 text-gray-600">
+                <dd className="font-medium text-gray-900">{invoice.sellerName}</dd>
+                {invoice.sellerAddress && <dd>{invoice.sellerAddress}</dd>}
+                {invoice.sellerPhone && <dd>{invoice.sellerPhone}</dd>}
+                {invoice.sellerEmail && <dd>{invoice.sellerEmail}</dd>}
+                {invoice.sellerTaxNumber && (
+                  <div className="flex justify-between gap-4 pt-1 border-t border-gray-100">
+                    <dt className="text-gray-500">Tax No.</dt>
+                    <dd className="font-medium text-gray-900 text-right">{invoice.sellerTaxNumber}</dd>
+                  </div>
+                )}
+                {invoice.sellerRegNumber && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-gray-500">Reg No.</dt>
+                    <dd className="font-medium text-gray-900 text-right">{invoice.sellerRegNumber}</dd>
+                  </div>
+                )}
+              </dl>
+            </Card>
+          )}
+
+          {/* Payment */}
+          {(invoice.paymentTerms || invoice.paymentReference || invoice.paymentNotes) && (
+            <Card>
+              <CardHeader title="Payment" />
+              <dl className="text-sm flex flex-col gap-3">
+                {invoice.paymentTerms && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-gray-500 shrink-0">Terms</dt>
+                    <dd className="font-medium text-gray-900 text-right">{invoice.paymentTerms}</dd>
+                  </div>
+                )}
+                {invoice.paymentReference && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-gray-500 shrink-0">Reference</dt>
+                    <dd className="font-medium text-gray-900 text-right">{invoice.paymentReference}</dd>
+                  </div>
+                )}
+                {invoice.paymentNotes && (
+                  <div className="flex flex-col gap-1 pt-1 border-t border-gray-100">
+                    <dt className="text-gray-500">Instructions</dt>
+                    <dd className="text-gray-700 leading-relaxed whitespace-pre-line">{invoice.paymentNotes}</dd>
+                  </div>
+                )}
+              </dl>
+            </Card>
+          )}
+
+          {invoice.notes && (
+            <Card>
+              <CardHeader title="Notes" />
+              <p className="text-sm text-gray-600 leading-relaxed">{invoice.notes}</p>
+            </Card>
+          )}
+        </div>
+      </div>
+
+      {/* Status update modal */}
+      <Modal
+        open={showStatusModal}
+        onClose={() => setShowStatusModal(false)}
+        title="Update invoice status"
+        size="sm"
+        footer={<Button variant="outline" onClick={() => setShowStatusModal(false)}>Cancel</Button>}
+      >
+        <div className="flex flex-col gap-2">
+          {[{ value: 0, label: 'Draft' }, { value: 1, label: 'Pending' }, { value: 2, label: 'Paid' }, { value: 3, label: 'Cancelled' }, { value: 4, label: 'Overdue' }]
+            .filter(s => s.value !== invoice.status)
+            .map(s => {
+              const isThisLoading = updateStatus.isPending && updateStatus.variables === s.value
+              return (
+                <button
+                  key={s.value}
+                  onClick={() => updateStatus.mutate(s.value)}
+                  disabled={updateStatus.isPending}
+                  className="flex items-center gap-3 w-full px-4 py-3 rounded-lg border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition-colors text-sm font-medium text-gray-700 text-left disabled:opacity-60"
+                >
+                  {isThisLoading
+                    ? <Spinner size="sm" />
+                    : <StatusBadge status={s.value} />
+                  }
+                  Mark as {s.label}
+                </button>
+              )
+            })}
+        </div>
+      </Modal>
+    </div>
+  )
+}
