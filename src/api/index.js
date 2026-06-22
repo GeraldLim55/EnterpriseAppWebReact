@@ -96,12 +96,21 @@ export const invoicesApi = {
 
   export: (params, format) =>
     client.get('/invoices/export', { params: { ...params, format }, responseType: 'blob' }),
+
+  approve: (id) =>
+    client.post(`/invoices/${id}/approve`),
+
+  reject: (id, reason) =>
+    client.post(`/invoices/${id}/reject`, { reason }),
+
+  duplicate: (id) =>
+    client.post(`/invoices/${id}/duplicate`),
 }
 
-// ─── Account API — basic profile info update (PUT /profile) ──────────────
+// ─── Account API — basic account info update (PUT /users/me) ─────────────
 export const accountApi = {
   update: (data) =>
-    client.put('/profile', data),
+    client.put('/users/me', data),
 }
 
 // ─── Profile API ──────────────────────────────────────────────────────────

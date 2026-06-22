@@ -6,11 +6,14 @@ import { z } from 'zod'
 import { companyApi } from '@/api'
 import { PageHeader } from '@/components/layout'
 import { Button, Input, Textarea, Card, CardHeader, Spinner } from '@/components/ui'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import toast from 'react-hot-toast'
+import { toastFormErrors } from '@/lib/utils'
 
 const schema = z.object({
   companyName: z.string().min(1, 'Company name is required').max(200),
   address: z.string().max(500).optional().or(z.literal('')),
+  phoneCountryCode: z.string().optional(),
   phone: z.string().max(50).optional().or(z.literal('')),
   email: z.string().email('Invalid email').max(200).optional().or(z.literal('')),
   website: z.string().max(500).optional().or(z.literal('')),
@@ -55,11 +58,11 @@ export default function CompanySettingsPage() {
     <div>
       <PageHeader
         title="Company profile"
-        description="Seller details stamped on every new invoice."
+        description="Your company information."
         breadcrumbs={[{ label: 'Settings', href: '/settings' }, { label: 'Company' }]}
       />
 
-      <form onSubmit={handleSubmit(d => mutation.mutate(d))}>
+      <form onSubmit={handleSubmit(d => mutation.mutate(d), e => toastFormErrors(e, toast))}>
         <div className="flex flex-col gap-5">
 
           {/* Identity */}
@@ -70,8 +73,11 @@ export default function CompanySettingsPage() {
                 <Input label="Company name" required error={errors.companyName?.message} {...register('companyName')} />
               </div>
               <Input label="Email" type="email" error={errors.email?.message} {...register('email')} />
-              <Input label="Phone" {...register('phone')} />
               <Input label="Website" {...register('website')} />
+              <PhoneInput
+                countryCodeProps={register('phoneCountryCode')}
+                phoneProps={register('phone')}
+              />
               <div className="sm:col-span-2">
                 <Textarea label="Address" rows={2} {...register('address')} />
               </div>

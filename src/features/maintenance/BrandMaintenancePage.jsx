@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Plus, Trash2, Tag, Pencil } from 'lucide-react'
 import { brandsApi } from '@/api'
+import { toastFormErrors } from '@/lib/utils'
 import { PageHeader } from '@/components/layout'
 import {
   Button, Input, Select, Badge, Table, Pagination,
@@ -299,7 +300,7 @@ function BrandModal({ open, brand, onClose, onSuccess }) {
       footer={
         <>
           <Button variant="outline" onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleSubmit(onSubmit)} loading={isSubmitting}>
+          <Button onClick={handleSubmit(onSubmit, e => toastFormErrors(e, toast))} loading={isSubmitting}>
             {isEdit ? 'Save changes' : 'Create brand'}
           </Button>
         </>

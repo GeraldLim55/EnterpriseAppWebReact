@@ -4,8 +4,13 @@ import { dashboardApi } from '@/api'
 import { PageHeader } from '@/components/layout'
 import { StatCard, Card, CardHeader, Spinner, Empty } from '@/components/ui'
 import { formatCurrency, formatNumber } from '@/lib/utils'
+import { useAuth } from '@/context/AuthContext'
+import { MODULES } from '@/types'
 
 export default function DashboardPage() {
+  const { hasModule } = useAuth()
+  const hasErp = hasModule(MODULES.Erp)
+
   const { data: res, isLoading } = useQuery({
     queryKey: ['dashboard-summary'],
     queryFn: () => dashboardApi.getSummary().then(r => r.data.data),
@@ -36,39 +41,45 @@ export default function DashboardPage() {
               icon={<Users className="w-5 h-5" />}
               color="brand"
             />
-            <StatCard
-              label="Total Items"
-              value={formatNumber(summary?.totalItems ?? 0)}
-              subtext={`${summary?.activeItems ?? 0} active`}
-              icon={<Package className="w-5 h-5" />}
-              color="green"
-            />
-            <StatCard
-              label="Total Invoices"
-              value={formatNumber(summary?.totalInvoices ?? 0)}
-              icon={<FileText className="w-5 h-5" />}
-              color="amber"
-            />
-            <StatCard
-              label="Total Revenue"
-              value={formatCurrency(summary?.totalRevenue ?? 0)}
-              icon={<DollarSign className="w-5 h-5" />}
-              color="brand"
-            />
+            {hasErp && (
+              <>
+                <StatCard
+                  label="Total Items"
+                  value={formatNumber(summary?.totalItems ?? 0)}
+                  subtext={`${summary?.activeItems ?? 0} active`}
+                  icon={<Package className="w-5 h-5" />}
+                  color="green"
+                />
+                <StatCard
+                  label="Total Invoices"
+                  value={formatNumber(summary?.totalInvoices ?? 0)}
+                  icon={<FileText className="w-5 h-5" />}
+                  color="amber"
+                />
+                <StatCard
+                  label="Total Revenue"
+                  value={formatCurrency(summary?.totalRevenue ?? 0)}
+                  icon={<DollarSign className="w-5 h-5" />}
+                  color="brand"
+                />
+              </>
+            )}
           </div>
 
-          {/* Secondary row */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <StatCard
-              label="Locations"
-              value={formatNumber(summary?.totalLocations ?? 0)}
-              icon={<MapPin className="w-5 h-5" />}
-              color="green"
-            />
-          </div>
+          {/* Secondary row — ERP only */}
+          {hasErp && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <StatCard
+                label="Locations"
+                value={formatNumber(summary?.totalLocations ?? 0)}
+                icon={<MapPin className="w-5 h-5" />}
+                color="green"
+              />
+            </div>
+          )}
 
-          {/* Monthly sales chart */}
-          <Card>
+          {/* Monthly sales chart — ERP only */}
+          {hasErp && <Card>
             <CardHeader
               title="Monthly Revenue"
               description="Paid invoices over the last 12 months"
@@ -100,7 +111,7 @@ export default function DashboardPage() {
             ) : (
               <Empty title="No sales data yet" description="Revenue data will appear here once invoices are paid." />
             )}
-          </Card>
+          </Card>}
         </div>
       )}
     </div>

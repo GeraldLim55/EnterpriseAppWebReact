@@ -10,7 +10,9 @@ import {
   Button, Input, Select, Badge, Table, Pagination,
   SearchInput, Modal, ConfirmDialog, Card, Textarea,
 } from '@/components/ui'
-import { formatDate } from '@/lib/utils'
+import { PhoneInput } from '@/components/ui/PhoneInput'
+import { CountryCitySelect } from '@/components/ui/CountryCitySelect'
+import { formatDate, toastFormErrors } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
 const PAGE_SIZE = 20
@@ -28,6 +30,7 @@ const locationSchema = z.object({
   state: z.string().max(100).optional().or(z.literal('')),
   country: z.string().max(100).optional().or(z.literal('')),
   postalCode: z.string().max(20).optional().or(z.literal('')),
+  phoneCountryCode: z.string().optional(),
   phone: z.string().max(50).optional().or(z.literal('')),
   isActive: z.boolean(),
   isDefault: z.boolean(),
@@ -273,9 +276,9 @@ export default function LocationMaintenancePage() {
 function LocationModal({ open, location, onClose, onSuccess }) {
   const isEdit = !!location
 
-  const { register, handleSubmit, reset, control, watch, formState: { errors, isSubmitting } } = useForm({
+  const { register, handleSubmit, reset, control, watch, setValue, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(locationSchema),
-    defaultValues: { name: '', address: '', city: '', state: '', country: '', postalCode: '', phone: '', isActive: true, isDefault: false },
+    defaultValues: { name: '', address: '', city: '', state: '', country: '', postalCode: '', phoneCountryCode: '60', phone: '', isActive: true, isDefault: false },
   })
 
   const watchedIsDefault = watch('isDefault')
@@ -289,10 +292,11 @@ function LocationModal({ open, location, onClose, onSuccess }) {
         state: location.state ?? '',
         country: location.country ?? '',
         postalCode: location.postalCode ?? '',
+        phoneCountryCode: location.phoneCountryCode ?? '60',
         phone: location.phone ?? '',
         isActive: location.isActive ?? true,
         isDefault: location.isDefault ?? false,
-      } : { name: '', address: '', city: '', state: '', country: '', postalCode: '', phone: '', isActive: true, isDefault: false })
+      } : { name: '', address: '', city: '', state: '', country: '', postalCode: '', phoneCountryCode: '60', phone: '', isActive: true, isDefault: false })
     }
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -325,7 +329,7 @@ function LocationModal({ open, location, onClose, onSuccess }) {
       footer={
         <>
           <Button variant="outline" onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleSubmit(onSubmit)} loading={isSubmitting}>
+          <Button onClick={handleSubmit(onSubmit, e => toastFormErrors(e, toast))} loading={isSubmitting}>
             {isEdit ? 'Save changes' : 'Create location'}
           </Button>
         </>
@@ -335,12 +339,21 @@ function LocationModal({ open, location, onClose, onSuccess }) {
         <Input label="Name" required error={errors.name?.message} {...register('name')} />
         <Textarea label="Address" rows={2} error={errors.address?.message} {...register('address')} />
         <div className="grid grid-cols-2 gap-3">
-          <Input label="City" error={errors.city?.message} {...register('city')} />
+          <CountryCitySelect
+            countryProps={register('country')}
+            cityProps={register('city')}
+            watchedCountry={watch('country')}
+            onClearCity={() => setValue('city', '')}
+            countryError={errors.country?.message}
+            cityError={errors.city?.message}
+          />
           <Input label="State / Province" error={errors.state?.message} {...register('state')} />
-          <Input label="Country" error={errors.country?.message} {...register('country')} />
           <Input label="Postal code" error={errors.postalCode?.message} {...register('postalCode')} />
         </div>
-        <Input label="Phone" error={errors.phone?.message} {...register('phone')} />
+        <PhoneInput
+          countryCodeProps={register('phoneCountryCode')}
+          phoneProps={register('phone')}
+        />
 
         <div className="flex flex-col gap-3 pt-1 border-t border-gray-100">
           <div className="flex flex-col gap-1.5">

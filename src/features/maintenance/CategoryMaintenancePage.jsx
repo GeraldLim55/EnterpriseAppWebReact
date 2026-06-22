@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, FolderTree } from 'lucide-react'
 import { categoriesApi } from '@/api'
+import { toastFormErrors } from '@/lib/utils'
 import { PageHeader } from '@/components/layout'
 import {
   Button, Input, Badge, Table, Pagination,
@@ -370,7 +371,7 @@ function CategoryModal({ open, category, parentId, parentName, onClose, onSucces
       footer={
         <>
           <Button variant="outline" onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleSubmit(onSubmit)} loading={isSubmitting}>
+          <Button onClick={handleSubmit(onSubmit, e => toastFormErrors(e, toast))} loading={isSubmitting}>
             {isEdit ? 'Save changes' : isSub ? 'Create sub-category' : 'Create category'}
           </Button>
         </>

@@ -188,7 +188,7 @@ export default function SettingsPage() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-gray-900">Company profile</p>
-                  <p className="text-xs text-gray-500">Seller details stamped on every new invoice</p>
+                  <p className="text-xs text-gray-500">Your company information</p>
                 </div>
               </div>
             </Card>

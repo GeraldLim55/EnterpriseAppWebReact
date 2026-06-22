@@ -1,23 +1,25 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate, useParams, Link } from 'react-router-dom'
+import { useNavigate, useParams, useLocation, Link } from 'react-router-dom'
 import { useForm, useFieldArray, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Download, Trash2, ArrowLeft, FileText } from 'lucide-react'
+import { Plus, Download, Trash2, ArrowLeft, FileText, CheckCircle, XCircle, Copy } from 'lucide-react'
 import { invoicesApi, itemsApi, locationsApi, companyApi, paymentTermsApi } from '@/api'
 import { PageHeader } from '@/components/layout'
 import {
   Button, Input, Select, Textarea, Badge, Table, Pagination,
   SearchInput, ConfirmDialog, Card, CardHeader, Empty, Spinner, Modal,
 } from '@/components/ui'
-import { formatCurrency, formatDate, downloadBlob } from '@/lib/utils'
+import { PhoneInput } from '@/components/ui/PhoneInput'
+import { formatCurrency, formatDate, downloadBlob, toastFormErrors } from '@/lib/utils'
+import { useAuth } from '@/context/AuthContext'
 import toast from 'react-hot-toast'
 
 // ─── Status helpers ───────────────────────────────────────────────────────
-const STATUS_LABELS = { 0: 'Draft', 1: 'Pending', 2: 'Paid', 3: 'Cancelled', 4: 'Overdue' }
+const STATUS_LABELS = { 0: 'Draft', 1: 'Pending', 2: 'Paid', 3: 'Cancelled', 4: 'Overdue', 5: 'Approved', 6: 'Rejected' }
 const STATUS_VARIANTS = {
-  0: 'default', 1: 'info', 2: 'success', 3: 'danger', 4: 'warning',
+  0: 'default', 1: 'info', 2: 'success', 3: 'danger', 4: 'warning', 5: 'success', 6: 'danger',
 }
 
 function StatusBadge({ status }) {
@@ -28,11 +30,14 @@ function StatusBadge({ status }) {
 export default function InvoicesPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const { hasMinLevel } = useAuth()
+  const isManager = hasMinLevel(60)
 
   const [filters, setFilters] = useState({ page: 1, pageSize: 20 })
   const [search, setSearch] = useState('')
   const [deleteId, setDeleteId] = useState(null)
   const [exporting, setExporting] = useState(false)
+  const [rejectTarget, setRejectTarget] = useState(null) // { id }
 
   const { data: res, isLoading } = useQuery({
     queryKey: ['invoices', filters],
@@ -50,6 +55,18 @@ export default function InvoicesPage() {
       const msg = err?.response?.data?.message ?? 'Failed to delete'
       toast.error(msg)
     },
+  })
+
+  const approveMutation = useMutation({
+    mutationFn: (id) => invoicesApi.approve(id),
+    onSuccess: () => { toast.success('Invoice approved'); qc.invalidateQueries({ queryKey: ['invoices'] }) },
+    onError: (err) => toast.error(err?.response?.data?.message ?? 'Failed to approve'),
+  })
+
+  const rejectMutation = useMutation({
+    mutationFn: ({ id, reason }) => invoicesApi.reject(id, reason),
+    onSuccess: () => { toast.success('Invoice rejected'); qc.invalidateQueries({ queryKey: ['invoices'] }); setRejectTarget(null) },
+    onError: (err) => toast.error(err?.response?.data?.message ?? 'Failed to reject'),
   })
 
   const handleExport = async (format) => {
@@ -92,16 +109,37 @@ export default function InvoicesPage() {
     { key: 'updatedDate', header: 'Updated',
       render: (row) => <span className="text-sm text-gray-500">{row.updatedDate ? formatDate(row.updatedDate) : '—'}</span>
     },
-    { key: 'actions', header: '', width: '60px',
+    { key: 'actions', header: '', width: '120px',
       render: (row) => (
-        <button
-          onClick={() => setDeleteId(row.id)}
-          disabled={row.status === 2}
-          className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed"
-          title={row.status === 2 ? 'Paid invoices cannot be deleted' : 'Delete'}
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        <div className="flex items-center justify-end gap-1">
+          {isManager && row.status === 1 && (
+            <>
+              <button
+                onClick={() => approveMutation.mutate(row.id)}
+                disabled={approveMutation.isPending}
+                className="p-1.5 rounded-lg text-gray-400 hover:bg-green-50 hover:text-green-600 disabled:opacity-30"
+                title="Approve"
+              >
+                <CheckCircle className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setRejectTarget({ id: row.id })}
+                className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600"
+                title="Reject"
+              >
+                <XCircle className="w-3.5 h-3.5" />
+              </button>
+            </>
+          )}
+          <button
+            onClick={() => setDeleteId(row.id)}
+            disabled={row.status === 2}
+            className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed"
+            title={row.status === 2 ? 'Paid invoices cannot be deleted' : 'Delete'}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
       )
     },
   ]
@@ -131,7 +169,8 @@ export default function InvoicesPage() {
             options={[
               { value: '', label: 'All status' },
               { value: '0', label: 'Draft' }, { value: '1', label: 'Pending' },
-              { value: '2', label: 'Paid' }, { value: '3', label: 'Cancelled' }, { value: '4', label: 'Overdue' },
+              { value: '2', label: 'Paid' }, { value: '3', label: 'Cancelled' },
+              { value: '4', label: 'Overdue' }, { value: '5', label: 'Approved' }, { value: '6', label: 'Rejected' },
             ]}
             value={filters.status ?? ''}
             onChange={e => setFilters(p => ({ ...p, status: e.target.value !== '' ? Number(e.target.value) : undefined, page: 1 }))}
@@ -183,16 +222,53 @@ export default function InvoicesPage() {
         variant="danger"
         loading={deleteMutation.isPending}
       />
+
+      <RejectModal
+        open={rejectTarget !== null}
+        onClose={() => setRejectTarget(null)}
+        onConfirm={(reason) => rejectMutation.mutate({ id: rejectTarget.id, reason })}
+        loading={rejectMutation.isPending}
+      />
     </div>
   )
 }
 
+// ─── Reject Reason Modal ──────────────────────────────────────────────────
+function RejectModal({ open, onClose, onConfirm, loading }) {
+  const [reason, setReason] = useState('')
+  useEffect(() => { if (open) setReason('') }, [open])
+  return (
+    <Modal open={open} onClose={onClose} title="Reject invoice" size="sm"
+      footer={
+        <div className="flex gap-2 justify-end">
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="danger" loading={loading} disabled={!reason.trim()} onClick={() => onConfirm(reason.trim())}>
+            Reject
+          </Button>
+        </div>
+      }
+    >
+      <Textarea
+        label="Reason for rejection"
+        required
+        rows={3}
+        placeholder="Explain why this invoice is being rejected…"
+        value={reason}
+        onChange={e => setReason(e.target.value)}
+      />
+    </Modal>
+  )
+}
+
 // ─── Invoice Create Schema ─────────────────────────────────────────────────
+// Accepts string | null | undefined — normalises null to undefined for optional fields
+const ns = z.string().nullish().transform(v => v ?? undefined)
+
 const lineSchema = z.object({
-  itemId: z.coerce.number().optional(),
-  locationId: z.coerce.number().min(1, 'Location required').or(z.literal(0)).optional(),
+  itemId: z.coerce.number().optional().nullable(),
+  locationId: z.coerce.number().min(1, 'Location required').or(z.literal(0)).optional().nullable(),
   itemName: z.string().min(1, 'Required'),
-  description: z.string().optional(),
+  description: ns,
   quantity: z.coerce.number().int().min(1, 'Min 1'),
   unitPrice: z.coerce.number().min(0.01, 'Must be > 0'),
   discountPercent: z.coerce.number().min(0).max(100).default(0),
@@ -201,18 +277,20 @@ const lineSchema = z.object({
 const invoiceSchema = z.object({
   locationId: z.coerce.number().min(1, 'Location is required'),
   invoiceDate: z.string().min(1, 'Invoice date is required'),
-  dueDate: z.string().optional(),
+  dueDate: ns,
   customerName: z.string().min(1, 'Customer name is required'),
-  customerEmail: z.string().email('Invalid email').optional().or(z.literal('')),
-  customerPhone: z.string().optional(),
-  customerAddress: z.string().optional(),
+  customerEmail: z.string().email('Invalid email').optional().or(z.literal('')).or(z.null()).transform(v => v ?? ''),
+  customerPhoneCountryCode: ns,
+  customerPhone: ns,
+  customerAddress: ns,
   taxRate: z.coerce.number().min(0.01, 'Tax rate must be greater than 0').max(100),
   discountAmount: z.coerce.number().min(0).default(0),
-  notes: z.string().optional(),
-  paymentTerms: z.string().optional(),
-  paymentNotes: z.string().optional(),
-  paymentReference: z.string().optional(),
+  notes: ns,
+  paymentTerms: ns,
+  paymentNotes: ns,
+  paymentReference: ns,
   details: z.array(lineSchema).min(1, 'Add at least one line item'),
+  status: z.number().default(1),
 }).refine(
   data => !data.dueDate || data.dueDate >= data.invoiceDate,
   { message: 'Due date must be on or after invoice date', path: ['dueDate'] }
@@ -222,6 +300,8 @@ const invoiceSchema = z.object({
 export function InvoiceCreatePage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const { state: routeState } = useLocation()
+  const { hasMinLevel } = useAuth()
 
   const [activeTab, setActiveTab] = useState('Invoice')
   const [confirmReplace, setConfirmReplace] = useState(null) // { locationId, locationName }
@@ -250,14 +330,33 @@ export function InvoiceCreatePage() {
     staleTime: 1000 * 60 * 5,
   })
 
+  const prefill = routeState?.prefill
   const { register, control, handleSubmit, watch, setValue, getValues, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(invoiceSchema),
-    defaultValues: {
+    defaultValues: prefill ? {
+      invoiceDate: new Date().toISOString().split('T')[0],
+      dueDate: '',
+      taxRate: prefill.taxRate,
+      discountAmount: prefill.discountAmount,
+      customerName: prefill.customerName ?? '',
+      customerEmail: prefill.customerEmail ?? '',
+      customerPhoneCountryCode: prefill.customerPhoneCountryCode ?? '60',
+      customerPhone: prefill.customerPhone ?? '',
+      customerAddress: prefill.customerAddress ?? '',
+      locationId: prefill.locationId,
+      notes: prefill.notes ?? '',
+      paymentTerms: prefill.paymentTerms ?? '',
+      paymentNotes: prefill.paymentNotes ?? '',
+      details: prefill.details,
+      status: 1,
+    } : {
       invoiceDate: new Date().toISOString().split('T')[0],
       taxRate: 6, discountAmount: 0,
+      customerPhoneCountryCode: '60',
       paymentTerms: company?.paymentTerms ?? '',
       paymentNotes: company?.paymentNotes ?? '',
       details: [{ itemName: '', quantity: 1, unitPrice: 0, discountPercent: 0 }],
+      status: 1,
     },
   })
 
@@ -359,12 +458,12 @@ export function InvoiceCreatePage() {
   return (
     <div>
       <PageHeader
-        title="New invoice"
-        breadcrumbs={[{ label: 'Invoices', href: '/invoices' }, { label: 'New invoice' }]}
+        title={prefill ? 'Duplicate invoice' : 'New invoice'}
+        breadcrumbs={[{ label: 'Invoices', href: '/invoices' }, { label: prefill ? 'Duplicate invoice' : 'New invoice' }]}
         action={<Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="w-3.5 h-3.5" />} onClick={() => navigate(-1)}>Back</Button>}
       />
 
-      <form onSubmit={handleSubmit(d => mutation.mutate(d))}>
+      <form onSubmit={e => e.preventDefault()}>
         <div className="flex flex-col gap-5">
 
           {/* Row 1 — Tabbed: Invoice / Customer */}
@@ -401,8 +500,23 @@ export function InvoiceCreatePage() {
 
             {activeTab === 'Invoice' && (
               <div className="grid grid-cols-2 gap-4">
-                <Input label="Invoice date" type="date" required error={errors.invoiceDate?.message} {...register('invoiceDate')} />
-                <Input label="Due date" type="date" error={errors.dueDate?.message} {...register('dueDate')} />
+                <Input
+                  label="Invoice date" type="date" required
+                  error={errors.invoiceDate?.message}
+                  {...register('invoiceDate', {
+                    onChange: e => {
+                      const newInvoiceDate = e.target.value
+                      const dueDate = getValues('dueDate')
+                      if (dueDate && dueDate < newInvoiceDate) setValue('dueDate', newInvoiceDate)
+                    }
+                  })}
+                />
+                <Input
+                  label="Due date" type="date"
+                  min={watch('invoiceDate')}
+                  error={errors.dueDate?.message}
+                  {...register('dueDate')}
+                />
                 <div>
                   <label className="text-xs font-medium text-gray-600 mb-1 block">
                     Location <span className="text-red-500">*</span>
@@ -468,7 +582,12 @@ export function InvoiceCreatePage() {
               <div className="grid grid-cols-2 gap-4">
                 <Input label="Customer name" required error={errors.customerName?.message} {...register('customerName')} />
                 <Input label="Customer email" type="email" error={errors.customerEmail?.message} {...register('customerEmail')} />
-                <Input label="Customer phone" {...register('customerPhone')} />
+                <PhoneInput
+                  label="Customer phone"
+                  countryCodeProps={register('customerPhoneCountryCode')}
+                  phoneProps={register('customerPhone')}
+                  colSpan2={false}
+                />
                 <div className="col-span-2">
                   <Textarea label="Address" rows={2} {...register('customerAddress')} />
                 </div>
@@ -617,10 +736,32 @@ export function InvoiceCreatePage() {
             </div>
           </Card>
 
-          <div className="flex justify-end">
-            <Button type="submit" loading={isSubmitting} className="w-full">
+          <div className="flex gap-3 justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              loading={isSubmitting}
+              onClick={handleSubmit(d => mutation.mutate({ ...d, status: 0 }), e => toastFormErrors(e, toast))}
+            >
+              Save as draft
+            </Button>
+            <Button
+              type="button"
+              loading={isSubmitting}
+              onClick={handleSubmit(d => mutation.mutate({ ...d, status: 1 }), e => toastFormErrors(e, toast))}
+            >
               Create invoice
             </Button>
+            {hasMinLevel(60) && (
+              <Button
+                type="button"
+                variant="success"
+                loading={isSubmitting}
+                onClick={handleSubmit(d => mutation.mutate({ ...d, status: 5 }), e => toastFormErrors(e, toast))}
+              >
+                Save &amp; confirm
+              </Button>
+            )}
           </div>
 
         </div>
@@ -647,7 +788,11 @@ export function InvoiceDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const { hasMinLevel } = useAuth()
+  const isManager = hasMinLevel(60)
   const [showStatusModal, setShowStatusModal] = useState(false)
+  const [showRejectModal, setShowRejectModal] = useState(false)
+  const [activeTab, setActiveTab] = useState('Invoice')
 
   const { data: invoice, isLoading } = useQuery({
     queryKey: ['invoice', id],
@@ -673,8 +818,51 @@ export function InvoiceDetailPage() {
     onError: () => toast.error('Failed to update status'),
   })
 
+  const approveMutation = useMutation({
+    mutationFn: () => invoicesApi.approve(Number(id)),
+    onSuccess: () => { toast.success('Invoice approved'); qc.invalidateQueries({ queryKey: ['invoice', id] }) },
+    onError: (err) => toast.error(err?.response?.data?.message ?? 'Failed to approve'),
+  })
+
+  const rejectMutation = useMutation({
+    mutationFn: (reason) => invoicesApi.reject(Number(id), reason),
+    onSuccess: () => { toast.success('Invoice rejected'); qc.invalidateQueries({ queryKey: ['invoice', id] }); setShowRejectModal(false) },
+    onError: (err) => toast.error(err?.response?.data?.message ?? 'Failed to reject'),
+  })
+
+  const handleDuplicate = () => {
+    navigate('/invoices/create', {
+      state: {
+        prefill: {
+          customerName: invoice.customerName,
+          customerEmail: invoice.customerEmail,
+          customerPhoneCountryCode: invoice.customerPhoneCountryCode,
+          customerPhone: invoice.customerPhone,
+          customerAddress: invoice.customerAddress,
+          locationId: invoice.locationId,
+          taxRate: invoice.taxRate,
+          discountAmount: invoice.discountAmount,
+          notes: invoice.notes,
+          paymentTerms: invoice.paymentTerms,
+          paymentNotes: invoice.paymentNotes,
+          details: invoice.details.map(d => ({
+            itemId: d.itemId,
+            itemName: d.itemName,
+            description: d.description,
+            quantity: d.quantity,
+            unitPrice: d.unitPrice,
+            discountPercent: d.discountPercent,
+            locationId: d.locationId,
+          })),
+        },
+      },
+    })
+  }
+
   if (isLoading) return <div className="flex justify-center py-20"><Spinner size="lg" /></div>
   if (!invoice) return <Empty title="Invoice not found" />
+
+  const canEdit = isManager || invoice.status === 0 || invoice.status === 1
 
   return (
     <div>
@@ -684,7 +872,23 @@ export function InvoiceDetailPage() {
         action={
           <div className="flex items-center gap-2">
             <StatusBadge status={invoice.status} />
-            {invoice.status !== 2 && (
+            {isManager && invoice.status === 1 && (
+              <>
+                <Button size="sm" variant="success" leftIcon={<CheckCircle className="w-3.5 h-3.5" />}
+                  loading={approveMutation.isPending} onClick={() => approveMutation.mutate()}>
+                  Approve
+                </Button>
+                <Button size="sm" variant="danger" leftIcon={<XCircle className="w-3.5 h-3.5" />}
+                  onClick={() => setShowRejectModal(true)}>
+                  Reject
+                </Button>
+              </>
+            )}
+            <Button size="sm" variant="outline" leftIcon={<Copy className="w-3.5 h-3.5" />}
+              onClick={handleDuplicate}>
+              Duplicate
+            </Button>
+            {canEdit && (
               <Button size="sm" variant="outline" onClick={() => setShowStatusModal(true)}>Update status</Button>
             )}
             <Button size="sm" variant="ghost" leftIcon={<ArrowLeft className="w-3.5 h-3.5" />} onClick={() => navigate(-1)}>
@@ -694,143 +898,145 @@ export function InvoiceDetailPage() {
         }
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader title="Line items" />
-            <Table
-              columns={[
-                { key: 'itemName', header: 'Item',
-                  render: (r) => (
-                    <div><p className="text-sm font-medium text-gray-900">{r.itemName}</p>
-                    {r.description && <p className="text-xs text-gray-400">{r.description}</p>}</div>
-                  )
-                },
-                { key: 'locationName', header: 'Location',
-                  render: r => r.locationName ? <span className="text-sm text-gray-600">{r.locationName}</span> : <span className="text-gray-300">—</span>
-                },
-                { key: 'quantity', header: 'Qty', align: 'right' },
-                { key: 'unitPrice', header: 'Unit price', align: 'right',
-                  render: r => formatCurrency(r.unitPrice)
-                },
-                { key: 'discountPercent', header: 'Disc', align: 'right',
-                  render: r => r.discountPercent > 0 ? `${r.discountPercent}%` : '—'
-                },
-                { key: 'lineTotal', header: 'Total', align: 'right',
-                  render: r => <span className="font-semibold">{formatCurrency(r.lineTotal)}</span>
-                },
-              ]}
-              data={invoice.details}
-              rowKey={r => r.id}
-            />
-            <div className="mt-4 flex flex-col items-end gap-1 text-sm border-t border-gray-100 pt-4">
-              <div className="flex gap-16 text-gray-600"><span>Subtotal</span><span>{formatCurrency(invoice.subTotal)}</span></div>
-              <div className="flex gap-16 text-gray-600"><span>Tax ({invoice.taxRate}%)</span><span>{formatCurrency(invoice.taxAmount)}</span></div>
-              {invoice.discountAmount > 0 && (
-                <div className="flex gap-16 text-red-600"><span>Discount</span><span>−{formatCurrency(invoice.discountAmount)}</span></div>
-              )}
-              <div className="flex gap-16 font-semibold text-base text-gray-900 border-t border-gray-200 pt-1 mt-1">
-                <span>Total</span><span>{formatCurrency(invoice.totalAmount)}</span>
-              </div>
+      <div className="flex flex-col gap-5">
+        {/* Row 1 — Tabbed info card (mirrors create page) */}
+        <Card>
+          {(() => {
+            const tabs = ['Invoice', 'Customer', 'Payment']
+            return (
+              <>
+                <div className="flex gap-1 border-b border-gray-200 mb-4">
+                  {tabs.map(tab => (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => setActiveTab(tab)}
+                      className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                        activeTab === tab
+                          ? 'text-brand-600 border-b-2 border-brand-600 -mb-px'
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+
+                {activeTab === 'Invoice' && (
+                  <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+                    {[
+                      ['Invoice #', invoice.invoiceNumber],
+                      ['Date', formatDate(invoice.invoiceDate)],
+                      ['Due date', invoice.dueDate ? formatDate(invoice.dueDate) : '—'],
+                      ['Location', invoice.locationName ?? '—'],
+                      ['Tax rate', `${invoice.taxRate}%`],
+                      ['Discount', invoice.discountAmount > 0 ? formatCurrency(invoice.discountAmount) : '—'],
+                    ].map(([label, value]) => (
+                      <div key={label} className="flex justify-between gap-4">
+                        <dt className="text-gray-500">{label}</dt>
+                        <dd className="font-medium text-gray-900 text-right">{value}</dd>
+                      </div>
+                    ))}
+                    {invoice.rejectionReason && (
+                      <div className="col-span-2 flex flex-col gap-1 pt-2 border-t border-red-100 bg-red-50 rounded-lg p-3 mt-1">
+                        <dt className="text-red-600 font-medium text-xs uppercase tracking-wide">Rejection reason</dt>
+                        <dd className="text-red-700 leading-relaxed">{invoice.rejectionReason}</dd>
+                      </div>
+                    )}
+                    {invoice.notes && (
+                      <div className="col-span-2 flex flex-col gap-1 pt-2 border-t border-gray-100">
+                        <dt className="text-gray-500">Notes</dt>
+                        <dd className="text-gray-700 leading-relaxed">{invoice.notes}</dd>
+                      </div>
+                    )}
+                  </dl>
+                )}
+
+                {activeTab === 'Customer' && (
+                  <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+                    {[
+                      ['Name', invoice.customerName ?? '—'],
+                      ['Email', invoice.customerEmail ?? '—'],
+                      ['Phone', invoice.customerPhone ? `+${invoice.customerPhoneCountryCode ?? ''}${invoice.customerPhone}` : '—'],
+                      ['Address', invoice.customerAddress ?? '—'],
+                    ].map(([label, value]) => (
+                      <div key={label} className="flex justify-between gap-4">
+                        <dt className="text-gray-500 shrink-0">{label}</dt>
+                        <dd className="font-medium text-gray-900 text-right">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
+
+                {activeTab === 'Payment' && (
+                  <dl className="text-sm flex flex-col gap-3">
+                    {invoice.paymentTerms && (
+                      <div className="flex justify-between gap-4">
+                        <dt className="text-gray-500 shrink-0">Terms</dt>
+                        <dd className="font-medium text-gray-900 text-right">{invoice.paymentTerms}</dd>
+                      </div>
+                    )}
+                    {invoice.paymentReference && (
+                      <div className="flex justify-between gap-4">
+                        <dt className="text-gray-500 shrink-0">Reference</dt>
+                        <dd className="font-medium text-gray-900 text-right">{invoice.paymentReference}</dd>
+                      </div>
+                    )}
+                    {invoice.paymentNotes && (
+                      <div className="flex flex-col gap-1 pt-1 border-t border-gray-100">
+                        <dt className="text-gray-500">Instructions</dt>
+                        <dd className="text-gray-700 leading-relaxed whitespace-pre-line">{invoice.paymentNotes}</dd>
+                      </div>
+                    )}
+                    {!invoice.paymentTerms && !invoice.paymentReference && !invoice.paymentNotes && (
+                      <p className="text-gray-400 text-sm">No payment information.</p>
+                    )}
+                  </dl>
+                )}
+              </>
+            )
+          })()}
+        </Card>
+
+        {/* Row 2 — Line items (full width, mirrors create page) */}
+        <Card>
+          <CardHeader title="Line items" />
+          <Table
+            columns={[
+              { key: 'itemName', header: 'Item',
+                render: (r) => (
+                  <div><p className="text-sm font-medium text-gray-900">{r.itemName}</p>
+                  {r.description && <p className="text-xs text-gray-400">{r.description}</p>}</div>
+                )
+              },
+              { key: 'locationName', header: 'Location',
+                render: r => r.locationName ? <span className="text-sm text-gray-600">{r.locationName}</span> : <span className="text-gray-300">—</span>
+              },
+              { key: 'quantity', header: 'Qty', align: 'right' },
+              { key: 'unitPrice', header: 'Unit price', align: 'right',
+                render: r => formatCurrency(r.unitPrice)
+              },
+              { key: 'discountPercent', header: 'Disc', align: 'right',
+                render: r => r.discountPercent > 0 ? `${r.discountPercent}%` : '—'
+              },
+              { key: 'lineTotal', header: 'Total', align: 'right',
+                render: r => <span className="font-semibold">{formatCurrency(r.lineTotal)}</span>
+              },
+            ]}
+            data={invoice.details}
+            rowKey={r => r.id}
+          />
+          <div className="mt-4 flex flex-col items-end gap-1 text-sm border-t border-gray-100 pt-4">
+            <div className="flex gap-16 text-gray-600"><span>Subtotal</span><span>{formatCurrency(invoice.subTotal)}</span></div>
+            <div className="flex gap-16 text-gray-600"><span>Tax ({invoice.taxRate}%)</span><span>{formatCurrency(invoice.taxAmount)}</span></div>
+            {invoice.discountAmount > 0 && (
+              <div className="flex gap-16 text-red-600"><span>Discount</span><span>−{formatCurrency(invoice.discountAmount)}</span></div>
+            )}
+            <div className="flex gap-16 font-semibold text-base text-gray-900 border-t border-gray-200 pt-1 mt-1">
+              <span>Total</span><span>{formatCurrency(invoice.totalAmount)}</span>
             </div>
-          </Card>
-        </div>
-
-        <div className="flex flex-col gap-5">
-          <Card>
-            <CardHeader title="Invoice details" />
-            <dl className="text-sm flex flex-col gap-3">
-              {[
-                ['Invoice #', invoice.invoiceNumber],
-                ['Date', formatDate(invoice.invoiceDate)],
-                ['Due date', invoice.dueDate ? formatDate(invoice.dueDate) : '—'],
-                ['Location', invoice.locationName ?? '—'],
-              ].map(([label, value]) => (
-                <div key={label} className="flex justify-between gap-4">
-                  <dt className="text-gray-500">{label}</dt>
-                  <dd className="font-medium text-gray-900 text-right">{value}</dd>
-                </div>
-              ))}
-            </dl>
-          </Card>
-
-          {/* Customer */}
-          <Card>
-            <CardHeader title="Customer" />
-            <dl className="text-sm flex flex-col gap-3">
-              {[
-                ['Name', invoice.customerName ?? '—'],
-                ['Email', invoice.customerEmail ?? '—'],
-                ['Phone', invoice.customerPhone ?? '—'],
-                ['Address', invoice.customerAddress ?? '—'],
-              ].map(([label, value]) => (
-                <div key={label} className="flex justify-between gap-4">
-                  <dt className="text-gray-500 shrink-0">{label}</dt>
-                  <dd className="font-medium text-gray-900 text-right">{value}</dd>
-                </div>
-              ))}
-            </dl>
-          </Card>
-
-          {/* Seller snapshot — only show if stamped */}
-          {invoice.sellerName && (
-            <Card>
-              <CardHeader title="Seller" />
-              <dl className="text-sm flex flex-col gap-2 text-gray-600">
-                <dd className="font-medium text-gray-900">{invoice.sellerName}</dd>
-                {invoice.sellerAddress && <dd>{invoice.sellerAddress}</dd>}
-                {invoice.sellerPhone && <dd>{invoice.sellerPhone}</dd>}
-                {invoice.sellerEmail && <dd>{invoice.sellerEmail}</dd>}
-                {invoice.sellerTaxNumber && (
-                  <div className="flex justify-between gap-4 pt-1 border-t border-gray-100">
-                    <dt className="text-gray-500">Tax No.</dt>
-                    <dd className="font-medium text-gray-900 text-right">{invoice.sellerTaxNumber}</dd>
-                  </div>
-                )}
-                {invoice.sellerRegNumber && (
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-gray-500">Reg No.</dt>
-                    <dd className="font-medium text-gray-900 text-right">{invoice.sellerRegNumber}</dd>
-                  </div>
-                )}
-              </dl>
-            </Card>
-          )}
-
-          {/* Payment */}
-          {(invoice.paymentTerms || invoice.paymentReference || invoice.paymentNotes) && (
-            <Card>
-              <CardHeader title="Payment" />
-              <dl className="text-sm flex flex-col gap-3">
-                {invoice.paymentTerms && (
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-gray-500 shrink-0">Terms</dt>
-                    <dd className="font-medium text-gray-900 text-right">{invoice.paymentTerms}</dd>
-                  </div>
-                )}
-                {invoice.paymentReference && (
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-gray-500 shrink-0">Reference</dt>
-                    <dd className="font-medium text-gray-900 text-right">{invoice.paymentReference}</dd>
-                  </div>
-                )}
-                {invoice.paymentNotes && (
-                  <div className="flex flex-col gap-1 pt-1 border-t border-gray-100">
-                    <dt className="text-gray-500">Instructions</dt>
-                    <dd className="text-gray-700 leading-relaxed whitespace-pre-line">{invoice.paymentNotes}</dd>
-                  </div>
-                )}
-              </dl>
-            </Card>
-          )}
-
-          {invoice.notes && (
-            <Card>
-              <CardHeader title="Notes" />
-              <p className="text-sm text-gray-600 leading-relaxed">{invoice.notes}</p>
-            </Card>
-          )}
-        </div>
+          </div>
+        </Card>
       </div>
 
       {/* Status update modal */}
@@ -853,16 +1059,20 @@ export function InvoiceDetailPage() {
                   disabled={updateStatus.isPending}
                   className="flex items-center gap-3 w-full px-4 py-3 rounded-lg border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition-colors text-sm font-medium text-gray-700 text-left disabled:opacity-60"
                 >
-                  {isThisLoading
-                    ? <Spinner size="sm" />
-                    : <StatusBadge status={s.value} />
-                  }
+                  {isThisLoading ? <Spinner size="sm" /> : <StatusBadge status={s.value} />}
                   Mark as {s.label}
                 </button>
               )
             })}
         </div>
       </Modal>
+
+      <RejectModal
+        open={showRejectModal}
+        onClose={() => setShowRejectModal(false)}
+        onConfirm={(reason) => rejectMutation.mutate(reason)}
+        loading={rejectMutation.isPending}
+      />
     </div>
   )
 }

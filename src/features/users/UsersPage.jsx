@@ -5,11 +5,13 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Plus, Trash2, Pencil } from 'lucide-react'
 import { usersApi } from '@/api'
+import { toastFormErrors } from '@/lib/utils'
 import { PageHeader } from '@/components/layout'
 import {
   Button, Input, Select, Badge, Table, Pagination, SearchInput,
   Modal, ConfirmDialog, Card, Empty,
 } from '@/components/ui'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import { formatDate, getInitials } from '@/lib/utils'
 import { ROLE_LEVELS } from '@/types'
 import toast from 'react-hot-toast'
@@ -30,6 +32,7 @@ const createUserSchema = z.object({
   password: z.string().min(8),
   firstName: z.string().optional(),
   lastName: z.string().optional(),
+  phoneCountryCode: z.string().optional(),
   phoneNumber: z.string().optional(),
   userLevel: z.coerce.number(),
   locationId: z.coerce.number().optional(),
@@ -38,6 +41,7 @@ const createUserSchema = z.object({
 const editUserSchema = z.object({
   firstName: z.string().optional(),
   lastName: z.string().optional(),
+  phoneCountryCode: z.string().optional(),
   phoneNumber: z.string().optional(),
   isActive: z.coerce.boolean(),
   userLevel: z.coerce.number(),
@@ -183,7 +187,7 @@ function CreateUserModal({ open, onClose, onSuccess, tenantId }) {
     <Modal open={open} onClose={onClose} title="Add user" size="md"
       footer={<>
         <Button variant="outline" onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSubmit(onSubmit)} loading={isSubmitting}>Create user</Button>
+        <Button onClick={handleSubmit(onSubmit, e => toastFormErrors(e, toast))} loading={isSubmitting}>Create user</Button>
       </>}
     >
       <div className="grid grid-cols-2 gap-4">
@@ -206,6 +210,7 @@ function EditUserModal({ user, open, onClose, onSuccess }) {
     resolver: zodResolver(editUserSchema),
     defaultValues: {
       firstName: user.firstName, lastName: user.lastName,
+      phoneCountryCode: user.phoneCountryCode ?? '60',
       phoneNumber: user.phoneNumber, isActive: user.isActive, userLevel: user.userLevel,
     },
   })
@@ -222,7 +227,7 @@ function EditUserModal({ user, open, onClose, onSuccess }) {
     <Modal open={open} onClose={onClose} title="Edit user" size="md"
       footer={<>
         <Button variant="outline" onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSubmit(onSubmit)} loading={isSubmitting}>Save changes</Button>
+        <Button onClick={handleSubmit(onSubmit, e => toastFormErrors(e, toast))} loading={isSubmitting}>Save changes</Button>
       </>}
     >
       <div className="flex flex-col gap-4">
@@ -238,7 +243,11 @@ function EditUserModal({ user, open, onClose, onSuccess }) {
         <div className="grid grid-cols-2 gap-4">
           <Input label="First name" {...register('firstName')} />
           <Input label="Last name" {...register('lastName')} />
-          <Input label="Phone" {...register('phoneNumber')} />
+          <PhoneInput
+            countryCodeProps={register('phoneCountryCode')}
+            phoneProps={register('phoneNumber')}
+            colSpan2={false}
+          />
           <Select label="Role" options={Object.entries(ROLE_LEVELS).map(([k,v])=>({value:v,label:k}))} {...register('userLevel')} />
           <Select label="Status" options={[{value:'true',label:'Active'},{value:'false',label:'Inactive'}]} {...register('isActive')} />
         </div>

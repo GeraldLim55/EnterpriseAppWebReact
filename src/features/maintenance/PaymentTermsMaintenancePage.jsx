@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Plus, Trash2, Pencil, Clock, Star } from 'lucide-react'
 import { paymentTermsApi } from '@/api'
+import { toastFormErrors } from '@/lib/utils'
 import { PageHeader } from '@/components/layout'
 import {
   Button, Input, Select, Badge, Table, Pagination,
@@ -253,7 +254,7 @@ function PaymentTermModal({ open, term, onClose, onSuccess }) {
       footer={
         <>
           <Button variant="outline" onClick={() => { reset(); onClose() }}>Cancel</Button>
-          <Button onClick={handleSubmit(onSubmit)} loading={isSubmitting}>
+          <Button onClick={handleSubmit(onSubmit, e => toastFormErrors(e, toast))} loading={isSubmitting}>
             {isEdit ? 'Save changes' : 'Create term'}
           </Button>
         </>

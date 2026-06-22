@@ -54,6 +54,21 @@ export function downloadBlob(blob, filename) {
   URL.revokeObjectURL(url)
 }
 
+// Flatten React Hook Form errors object (including nested arrays) and show each as toast.error
+export function toastFormErrors(errors, toast) {
+  const messages = []
+  const collect = (obj) => {
+    if (!obj || typeof obj !== 'object') return
+    if (obj.message) { messages.push(obj.message); return }
+    Object.values(obj).forEach(v => {
+      if (Array.isArray(v)) v.forEach(item => collect(item))
+      else collect(v)
+    })
+  }
+  collect(errors)
+  messages.forEach(msg => toast.error(msg))
+}
+
 export function buildQueryString(params) {
   const q = new URLSearchParams()
   Object.entries(params).forEach(([k, v]) => {

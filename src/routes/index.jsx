@@ -18,6 +18,7 @@ const InvoicesPage = lazy(() => import('@/features/invoices/InvoicesPage'))
 const InvoiceDetailPage = lazy(() => import('@/features/invoices/InvoiceDetailPage'))
 const InvoiceCreatePage = lazy(() => import('@/features/invoices/InvoiceCreatePage'))
 const AccountPage = lazy(() => import('@/features/profile/AccountPage'))
+const ProfilePage = lazy(() => import('@/features/profile/ProfilePage'))
 const UsersPage = lazy(() => import('@/features/users/UsersPage'))
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage'))
 const CompanySettingsPage = lazy(() => import('@/features/settings/CompanySettingsPage'))
@@ -81,6 +82,7 @@ export default function AppRouter() {
           <Route path="/items" element={<ItemsPage />} />
           <Route path="/items/:id" element={<ItemDetailPage />} />
           <Route path="/account" element={<AccountPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
         </Route>
 
         {/* Protected — Invoice module */}
@@ -90,8 +92,8 @@ export default function AppRouter() {
           <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
         </Route>
 
-        {/* Protected — Manager+ and Reports module */}
-        <Route element={<ProtectedRoute minLevel={60} moduleKey={MODULES.Reports} />}>
+        {/* Protected — Manager+ */}
+        <Route element={<ProtectedRoute minLevel={60} />}>
           <Route path="/dashboard" element={<DashboardPage />} />
         </Route>
 

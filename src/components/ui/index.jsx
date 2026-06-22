@@ -13,6 +13,7 @@ export function Button({
     secondary: 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300',
     ghost: 'text-gray-600 hover:bg-gray-100 active:bg-gray-200',
     danger: 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800',
+    success: 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800',
     outline: 'border border-gray-300 text-gray-700 hover:bg-gray-50 active:bg-gray-100',
   }
   const sizes = {

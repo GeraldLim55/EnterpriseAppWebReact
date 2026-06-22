@@ -3,7 +3,7 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Package, FileText, Users, Settings,
   UserCircle, LogOut, Menu, X, ChevronRight, Building2,
-  BarChart3, Bell, Wrench, Tag, ChevronDown, FolderTree, MapPin, Clock,
+  BarChart3, Bell, Wrench, Tag, ChevronDown, FolderTree, MapPin, Clock, Contact,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { cn, getInitials } from '@/lib/utils'
@@ -12,10 +12,11 @@ import toast from 'react-hot-toast'
 import { ROLE_LEVELS, MODULES } from '@/types'
 
 const NAV_ITEMS = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, minLevel: ROLE_LEVELS.Manager, moduleKey: MODULES.Reports },
+  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, minLevel: ROLE_LEVELS.Manager },
   { label: 'Items', href: '/items', icon: Package },
   { label: 'Invoices', href: '/invoices', icon: FileText, moduleKey: MODULES.Erp },
   { label: 'Users', href: '/users', icon: Users, minLevel: ROLE_LEVELS.Admin },
+  { label: 'Profile', href: '/profile', icon: Contact, moduleKey: MODULES.Profile },
   { label: 'Account', href: '/account', icon: UserCircle },
   { label: 'Settings', href: '/settings', icon: Settings, minLevel: ROLE_LEVELS.Admin },
 ]
@@ -159,7 +160,7 @@ function Sidebar({ collapsed, onToggle }) {
         ))}
 
         {/* Nav groups */}
-        {NAV_GROUPS.filter(g => !g.minLevel || hasMinLevel(g.minLevel)).map(group => (
+        {NAV_GROUPS.filter(g => (!g.minLevel || hasMinLevel(g.minLevel)) && (!g.moduleKey || hasModule(g.moduleKey))).map(group => (
           <NavGroup key={group.basePath} group={group} collapsed={collapsed} />
         ))}
       </nav>
@@ -263,7 +264,7 @@ function MobileDrawer({ open, onClose }) {
               <ChevronRight className="w-3.5 h-3.5 ml-auto opacity-40" />
             </NavLink>
           ))}
-          {NAV_GROUPS.filter(g => !g.minLevel || hasMinLevel(g.minLevel)).map(group => (
+          {NAV_GROUPS.filter(g => (!g.minLevel || hasMinLevel(g.minLevel)) && (!g.moduleKey || hasModule(g.moduleKey))).map(group => (
             <NavGroup key={group.basePath} group={group} collapsed={false} onChildClick={onClose} />
           ))}
         </nav>
