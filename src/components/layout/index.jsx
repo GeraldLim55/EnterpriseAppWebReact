@@ -98,6 +98,7 @@ function NavGroup({ group, collapsed, onChildClick }) {
             <NavLink
               key={child.href}
               to={child.href}
+              end
               onClick={onChildClick}
               className={({ isActive }) => cn('nav-link mb-0.5 text-sm', isActive && 'active')}
             >
