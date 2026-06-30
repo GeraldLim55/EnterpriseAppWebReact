@@ -4,7 +4,7 @@ import { useNavigate, useParams, useLocation, Link } from 'react-router-dom'
 import { useForm, useFieldArray, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Download, Trash2, ArrowLeft, FileText, CheckCircle, XCircle, Copy, Mail } from 'lucide-react'
+import { Plus, Download, Trash2, ArrowLeft, FileText, CheckCircle, XCircle, Copy, Mail, X } from 'lucide-react'
 import { invoicesApi, itemsApi, locationsApi, companyApi, paymentTermsApi } from '@/api'
 import { PageHeader } from '@/components/layout'
 import {
@@ -278,65 +278,118 @@ export default function InvoicesPage() {
   )
 }
 
+// ─── Invoice HTML Preview Modal ───────────────────────────────────────────
+function InvoicePreviewModal({ open, onClose, invoiceId }) {
+  const [html, setHtml] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!open || !invoiceId) return
+    setLoading(true)
+    invoicesApi.getPreviewHtml(invoiceId)
+      .then(res => setHtml(res.data?.data ?? ''))
+      .catch(() => toast.error('Failed to load preview'))
+      .finally(() => setLoading(false))
+  }, [open, invoiceId])
+
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-gray-900/80 backdrop-blur-sm">
+      {/* toolbar */}
+      <div className="flex items-center justify-between px-4 py-2 bg-white border-b shrink-0">
+        <span className="font-semibold text-gray-800 text-sm">Invoice Preview</span>
+        <button onClick={onClose} className="text-gray-500 hover:text-gray-800 p-1 rounded">
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+      {/* content */}
+      <div className="flex-1 overflow-auto bg-gray-100 flex items-start justify-center p-6">
+        {loading ? (
+          <div className="flex items-center gap-2 text-white mt-20">
+            <span className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
+            Loading preview…
+          </div>
+        ) : (
+          <iframe
+            srcDoc={html}
+            title="Invoice Preview"
+            className="w-[210mm] min-h-[297mm] bg-white shadow-xl border-0"
+            sandbox="allow-same-origin"
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Send Email Modal ─────────────────────────────────────────────────────
 function SendEmailModal({ open, onClose, onSend, loading, customerEmail, invoiceId }) {
   const hasEmail = !!customerEmail
-  const [previewing, setPreviewing] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
 
-  const handlePreview = async () => {
-    if (!invoiceId || previewing) return
-    setPreviewing(true)
+  const handleDownload = async () => {
+    if (!invoiceId || downloading) return
+    setDownloading(true)
     try {
       const res = await invoicesApi.downloadPdf(invoiceId)
       const blob = new Blob([res.data], { type: 'application/pdf' })
       const url = URL.createObjectURL(blob)
-      // Use anchor click — avoids browsers treating window.open(blob) as a download
       const a = document.createElement('a')
       a.href = url
-      a.target = '_blank'
-      a.rel = 'noopener noreferrer'
+      a.download = `invoice.pdf`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
       setTimeout(() => URL.revokeObjectURL(url), 30000)
     } catch {
-      toast.error('Failed to load PDF preview')
+      toast.error('Failed to download PDF')
     } finally {
-      setPreviewing(false)
+      setDownloading(false)
     }
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Send invoice to customer" size="sm"
-      footer={
-        <div className="flex gap-2 justify-between">
-          <Button variant="ghost" size="sm" loading={previewing} onClick={handlePreview}
-            leftIcon={<FileText className="w-3.5 h-3.5" />}>
-            Preview PDF
-          </Button>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose}>Skip</Button>
-            <Button loading={loading} disabled={!hasEmail} onClick={onSend}>
-              Send email
-            </Button>
+    <>
+      <InvoicePreviewModal open={showPreview} onClose={() => setShowPreview(false)} invoiceId={invoiceId} />
+      <Modal open={open} onClose={onClose} title="Send invoice to customer" size="sm"
+        footer={
+          <div className="flex gap-2 justify-between">
+            <div className="flex gap-1">
+              <Button variant="ghost" size="sm" onClick={() => setShowPreview(true)}
+                leftIcon={<FileText className="w-3.5 h-3.5" />}>
+                Preview
+              </Button>
+              <Button variant="ghost" size="sm" loading={downloading} onClick={handleDownload}
+                leftIcon={<Download className="w-3.5 h-3.5" />}>
+                Download PDF
+              </Button>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={onClose}>Skip</Button>
+              <Button loading={loading} disabled={!hasEmail} onClick={onSend}>
+                Send email
+              </Button>
+            </div>
           </div>
-        </div>
-      }
-    >
-      {hasEmail ? (
-        <p className="text-sm text-gray-600">
-          Send the approved invoice with a PDF attachment to{' '}
-          <span className="font-semibold text-gray-900">{customerEmail}</span>?
-        </p>
-      ) : (
-        <div className="flex flex-col gap-2">
-          <p className="text-sm text-gray-600">Would you like to email this invoice to the customer?</p>
-          <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-            No customer email on file — cannot send. Edit the invoice to add one.
+        }
+      >
+        {hasEmail ? (
+          <p className="text-sm text-gray-600">
+            Send the approved invoice with a PDF attachment to{' '}
+            <span className="font-semibold text-gray-900">{customerEmail}</span>?
           </p>
-        </div>
-      )}
-    </Modal>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm text-gray-600">Would you like to email this invoice to the customer?</p>
+            <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              No customer email on file — cannot send. Edit the invoice to add one.
+            </p>
+          </div>
+        )}
+      </Modal>
+    </>
   )
 }
 

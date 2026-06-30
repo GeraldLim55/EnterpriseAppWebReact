@@ -111,6 +111,9 @@ export const invoicesApi = {
 
   downloadPdf: (id) =>
     client.get(`/invoices/${id}/pdf`, { responseType: 'blob' }),
+
+  getPreviewHtml: (id) =>
+    client.get(`/invoices/${id}/html`),
 }
 
 // ─── Account API — basic account info update (PUT /users/me) ─────────────
