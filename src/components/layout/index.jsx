@@ -257,6 +257,12 @@ function Header({ onMenuToggle }) {
 function MobileDrawer({ open, onClose }) {
   const { session, hasMinLevel, hasModule, logout } = useAuth()
   const navigate = useNavigate()
+  const { data: company } = useQuery({
+    queryKey: ['company-profile'],
+    queryFn: () => companyApi.get().then(r => r.data?.data),
+    staleTime: 1000 * 60 * 10,
+  })
+  const displayName = company?.companyName || session?.tenantName || 'EnterpriseApp'
 
   const handleLogout = async () => {
     await logout()
