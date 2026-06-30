@@ -353,7 +353,7 @@ function SendEmailModal({ open, onClose, onSend, loading, customerEmail, invoice
   return (
     <>
       <InvoicePreviewModal open={showPreview} onClose={() => setShowPreview(false)} invoiceId={invoiceId} />
-      <Modal open={open} onClose={onClose} title="Send invoice to customer" size="sm"
+      <Modal open={open} onClose={onClose} title="Send invoice to customer" size="md"
         footer={
           <div className="flex gap-2 justify-between">
             <div className="flex gap-1">
