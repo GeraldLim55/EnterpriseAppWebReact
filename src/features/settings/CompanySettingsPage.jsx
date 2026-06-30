@@ -40,7 +40,7 @@ export default function CompanySettingsPage() {
   })
 
   useEffect(() => {
-    if (res) reset(res)
+    if (res) reset(Object.fromEntries(Object.entries(res).map(([k, v]) => [k, v ?? ''])))
   }, [res, reset])
 
   const mutation = useMutation({
