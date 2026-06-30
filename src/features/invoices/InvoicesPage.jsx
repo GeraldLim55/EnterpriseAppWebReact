@@ -4,7 +4,7 @@ import { useNavigate, useParams, useLocation, Link } from 'react-router-dom'
 import { useForm, useFieldArray, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Download, Trash2, ArrowLeft, FileText, CheckCircle, XCircle, Copy } from 'lucide-react'
+import { Plus, Download, Trash2, ArrowLeft, FileText, CheckCircle, XCircle, Copy, Mail } from 'lucide-react'
 import { invoicesApi, itemsApi, locationsApi, companyApi, paymentTermsApi } from '@/api'
 import { PageHeader } from '@/components/layout'
 import {
@@ -38,6 +38,7 @@ export default function InvoicesPage() {
   const [deleteId, setDeleteId] = useState(null)
   const [exporting, setExporting] = useState(false)
   const [rejectTarget, setRejectTarget] = useState(null) // { id }
+  const [emailTarget, setEmailTarget] = useState(null) // { id, customerEmail }
 
   const { data: res, isLoading } = useQuery({
     queryKey: ['invoices', filters],
@@ -58,8 +59,12 @@ export default function InvoicesPage() {
   })
 
   const approveMutation = useMutation({
-    mutationFn: (id) => invoicesApi.approve(id),
-    onSuccess: () => { toast.success('Invoice approved'); qc.invalidateQueries({ queryKey: ['invoices'] }) },
+    mutationFn: ({ id }) => invoicesApi.approve(id),
+    onSuccess: (_, { id, customerEmail }) => {
+      toast.success('Invoice approved')
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      setEmailTarget({ id, customerEmail })
+    },
     onError: (err) => toast.error(err?.response?.data?.message ?? 'Failed to approve'),
   })
 
@@ -67,6 +72,12 @@ export default function InvoicesPage() {
     mutationFn: ({ id, reason }) => invoicesApi.reject(id, reason),
     onSuccess: () => { toast.success('Invoice rejected'); qc.invalidateQueries({ queryKey: ['invoices'] }); setRejectTarget(null) },
     onError: (err) => toast.error(err?.response?.data?.message ?? 'Failed to reject'),
+  })
+
+  const sendEmailMutation = useMutation({
+    mutationFn: (id) => invoicesApi.sendEmail(id),
+    onSuccess: (res) => { toast.success(res.data?.message ?? 'Email sent'); setEmailTarget(null) },
+    onError: (err) => { toast.error(err?.response?.data?.message ?? 'Failed to send email'); setEmailTarget(null) },
   })
 
   const handleExport = async (format) => {
@@ -109,13 +120,22 @@ export default function InvoicesPage() {
     { key: 'updatedDate', header: 'Updated',
       render: (row) => <span className="text-sm text-gray-500">{row.updatedDate ? formatDate(row.updatedDate) : '—'}</span>
     },
-    { key: 'actions', header: '', width: '120px',
+    { key: 'actions', header: '', width: '150px',
       render: (row) => (
         <div className="flex items-center justify-end gap-1">
+          <button
+            onClick={() => navigate(`/invoices/${row.id}/edit`)}
+            className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            title="Edit"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 11l6.364-6.364a2 2 0 012.828 2.828L11.828 13.828a2 2 0 01-1.414.586H9v-2a2 2 0 01.586-1.414z" />
+            </svg>
+          </button>
           {isManager && row.status === 1 && (
             <>
               <button
-                onClick={() => approveMutation.mutate(row.id)}
+                onClick={() => approveMutation.mutate({ id: row.id, customerEmail: row.customerEmail })}
                 disabled={approveMutation.isPending}
                 className="p-1.5 rounded-lg text-gray-400 hover:bg-green-50 hover:text-green-600 disabled:opacity-30"
                 title="Approve"
@@ -130,6 +150,22 @@ export default function InvoicesPage() {
                 <XCircle className="w-3.5 h-3.5" />
               </button>
             </>
+          )}
+          {row.status === 5 && (
+            <button
+              onClick={() => {
+                if (!row.customerEmail) {
+                  toast.error('No customer email on file — edit the invoice to add one.')
+                  return
+                }
+                setEmailTarget({ id: row.id, customerEmail: row.customerEmail })
+              }}
+              disabled={sendEmailMutation.isPending}
+              className="p-1.5 rounded-lg text-gray-400 hover:bg-blue-50 hover:text-blue-600 disabled:opacity-30"
+              title="Resend email"
+            >
+              <Mail className="w-3.5 h-3.5" />
+            </button>
           )}
           <button
             onClick={() => setDeleteId(row.id)}
@@ -229,7 +265,71 @@ export default function InvoicesPage() {
         onConfirm={(reason) => rejectMutation.mutate({ id: rejectTarget.id, reason })}
         loading={rejectMutation.isPending}
       />
+
+      <SendEmailModal
+        open={emailTarget !== null}
+        onClose={() => setEmailTarget(null)}
+        onSend={() => sendEmailMutation.mutate(emailTarget.id)}
+        loading={sendEmailMutation.isPending}
+        customerEmail={emailTarget?.customerEmail}
+        invoiceId={emailTarget?.id}
+      />
     </div>
+  )
+}
+
+// ─── Send Email Modal ─────────────────────────────────────────────────────
+function SendEmailModal({ open, onClose, onSend, loading, customerEmail, invoiceId }) {
+  const hasEmail = !!customerEmail
+  const [previewing, setPreviewing] = useState(false)
+
+  const handlePreview = async () => {
+    if (!invoiceId) return
+    setPreviewing(true)
+    try {
+      const res = await invoicesApi.downloadPdf(invoiceId)
+      const blob = new Blob([res.data], { type: 'application/pdf' })
+      const url = URL.createObjectURL(blob)
+      window.open(url, '_blank')
+      setTimeout(() => URL.revokeObjectURL(url), 30000)
+    } catch {
+      toast.error('Failed to load PDF preview')
+    } finally {
+      setPreviewing(false)
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Send invoice to customer" size="sm"
+      footer={
+        <div className="flex gap-2 justify-between">
+          <Button variant="ghost" size="sm" loading={previewing} onClick={handlePreview}
+            leftIcon={<FileText className="w-3.5 h-3.5" />}>
+            Preview PDF
+          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose}>Skip</Button>
+            <Button loading={loading} disabled={!hasEmail} onClick={onSend}>
+              Send email
+            </Button>
+          </div>
+        </div>
+      }
+    >
+      {hasEmail ? (
+        <p className="text-sm text-gray-600">
+          Send the approved invoice with a PDF attachment to{' '}
+          <span className="font-semibold text-gray-900">{customerEmail}</span>?
+        </p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <p className="text-sm text-gray-600">Would you like to email this invoice to the customer?</p>
+          <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            No customer email on file — cannot send. Edit the invoice to add one.
+          </p>
+        </div>
+      )}
+    </Modal>
   )
 }
 
@@ -405,12 +505,27 @@ export function InvoiceCreatePage() {
   const taxAmount = subTotal * ((Number(watchedTax) || 0) / 100)
   const total = subTotal + taxAmount - masterDiscount
 
+  const [createdInvoice, setCreatedInvoice] = useState(null) // for email modal after save+confirm
+  const [showCreateEmailModal, setShowCreateEmailModal] = useState(false)
+
+  const sendEmailAfterCreate = useMutation({
+    mutationFn: (id) => invoicesApi.sendEmail(id),
+    onSuccess: (res) => { toast.success(res.data?.message ?? 'Email sent'); setShowCreateEmailModal(false); navigate('/invoices') },
+    onError: (err) => { toast.error(err?.response?.data?.message ?? 'Failed to send email'); setShowCreateEmailModal(false); navigate('/invoices') },
+  })
+
   const mutation = useMutation({
     mutationFn: (data) => invoicesApi.create(data),
-    onSuccess: (res) => {
-      toast.success(`Invoice ${res.data.data?.invoiceNumber} created`)
+    onSuccess: (res, variables) => {
+      const inv = res.data.data
+      toast.success(`Invoice ${inv?.invoiceNumber} created`)
       qc.invalidateQueries({ queryKey: ['invoices'] })
-      navigate('/invoices')
+      if (variables.status === 5) {
+        setCreatedInvoice(inv)
+        setShowCreateEmailModal(true)
+      } else {
+        navigate('/invoices')
+      }
     },
     onError: () => toast.error('Failed to create invoice'),
   })
@@ -779,6 +894,15 @@ export function InvoiceCreatePage() {
         variant="warning"
         onCancel={() => applyLocationToDetails(false)}
       />
+
+      <SendEmailModal
+        open={showCreateEmailModal}
+        onClose={() => { setShowCreateEmailModal(false); navigate('/invoices') }}
+        onSend={() => sendEmailAfterCreate.mutate(createdInvoice?.id)}
+        loading={sendEmailAfterCreate.isPending}
+        customerEmail={createdInvoice?.customerEmail}
+        invoiceId={createdInvoice?.id}
+      />
     </div>
   )
 }
@@ -792,6 +916,7 @@ export function InvoiceDetailPage() {
   const isManager = hasMinLevel(60)
   const [showStatusModal, setShowStatusModal] = useState(false)
   const [showRejectModal, setShowRejectModal] = useState(false)
+  const [showEmailModal, setShowEmailModal] = useState(false)
   const [activeTab, setActiveTab] = useState('Invoice')
 
   const { data: invoice, isLoading } = useQuery({
@@ -820,8 +945,18 @@ export function InvoiceDetailPage() {
 
   const approveMutation = useMutation({
     mutationFn: () => invoicesApi.approve(Number(id)),
-    onSuccess: () => { toast.success('Invoice approved'); qc.invalidateQueries({ queryKey: ['invoice', id] }) },
+    onSuccess: () => {
+      toast.success('Invoice approved')
+      qc.invalidateQueries({ queryKey: ['invoice', id] })
+      setShowEmailModal(true)
+    },
     onError: (err) => toast.error(err?.response?.data?.message ?? 'Failed to approve'),
+  })
+
+  const sendEmailMutation = useMutation({
+    mutationFn: () => invoicesApi.sendEmail(Number(id)),
+    onSuccess: (res) => { toast.success(res.data?.message ?? 'Email sent'); setShowEmailModal(false) },
+    onError: (err) => { toast.error(err?.response?.data?.message ?? 'Failed to send email'); setShowEmailModal(false) },
   })
 
   const rejectMutation = useMutation({
@@ -889,7 +1024,10 @@ export function InvoiceDetailPage() {
               Duplicate
             </Button>
             {canEdit && (
-              <Button size="sm" variant="outline" onClick={() => setShowStatusModal(true)}>Update status</Button>
+              <>
+                <Button size="sm" variant="outline" onClick={() => setShowStatusModal(true)}>Update status</Button>
+                <Button size="sm" variant="outline" onClick={() => navigate(`/invoices/${id}/edit`)}>Edit</Button>
+              </>
             )}
             <Button size="sm" variant="ghost" leftIcon={<ArrowLeft className="w-3.5 h-3.5" />} onClick={() => navigate(-1)}>
               Back
@@ -1072,6 +1210,494 @@ export function InvoiceDetailPage() {
         onClose={() => setShowRejectModal(false)}
         onConfirm={(reason) => rejectMutation.mutate(reason)}
         loading={rejectMutation.isPending}
+      />
+
+      <SendEmailModal
+        open={showEmailModal}
+        onClose={() => setShowEmailModal(false)}
+        onSend={() => sendEmailMutation.mutate()}
+        loading={sendEmailMutation.isPending}
+        customerEmail={invoice?.customerEmail}
+        invoiceId={Number(id)}
+      />
+    </div>
+  )
+}
+
+// ─── Invoice Edit Page ────────────────────────────────────────────────────
+export function InvoiceEditPage() {
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const qc = useQueryClient()
+  const { hasMinLevel } = useAuth()
+  const isManager = hasMinLevel(60)
+
+  const [activeTab, setActiveTab] = useState('Invoice')
+  const [confirmReplace, setConfirmReplace] = useState(null)
+  const [showResendModal, setShowResendModal] = useState(false)
+  const [pendingSave, setPendingSave] = useState(null) // form data waiting for resend decision
+
+  const { data: invoice, isLoading: loadingInvoice } = useQuery({
+    queryKey: ['invoice', id],
+    queryFn: () => invoicesApi.getById(Number(id)).then(r => r.data.data),
+    enabled: !!id,
+  })
+
+  const { data: items = [] } = useQuery({
+    queryKey: ['items-lookup'],
+    queryFn: () => itemsApi.getLookup().then(r => r.data.data ?? []),
+    staleTime: 1000 * 60 * 5,
+  })
+
+  const { data: locations = [] } = useQuery({
+    queryKey: ['locations-lookup'],
+    queryFn: () => locationsApi.getLookup().then(r => r.data.data ?? []),
+    staleTime: 1000 * 60 * 5,
+  })
+
+  const { data: paymentTerms = [] } = useQuery({
+    queryKey: ['payment-terms-lookup'],
+    queryFn: () => paymentTermsApi.getLookup().then(r => r.data.data ?? []),
+    staleTime: 1000 * 60 * 5,
+  })
+
+  const { register, control, handleSubmit, watch, setValue, getValues, reset, formState: { errors, isSubmitting } } = useForm({
+    resolver: zodResolver(invoiceSchema),
+  })
+
+  const { fields, append, remove } = useFieldArray({ control, name: 'details' })
+
+  // Pre-fill form when invoice loads
+  useEffect(() => {
+    if (!invoice) return
+    reset({
+      invoiceDate: invoice.invoiceDate?.split('T')[0] ?? '',
+      dueDate: invoice.dueDate?.split('T')[0] ?? '',
+      taxRate: invoice.taxRate,
+      discountAmount: invoice.discountAmount,
+      customerName: invoice.customerName ?? '',
+      customerEmail: invoice.customerEmail ?? '',
+      customerPhoneCountryCode: invoice.customerPhoneCountryCode ?? '60',
+      customerPhone: invoice.customerPhone ?? '',
+      customerAddress: invoice.customerAddress ?? '',
+      locationId: invoice.locationId,
+      notes: invoice.notes ?? '',
+      paymentTerms: invoice.paymentTerms ?? '',
+      paymentNotes: invoice.paymentNotes ?? '',
+      paymentReference: invoice.paymentReference ?? '',
+      status: invoice.status,
+      details: invoice.details?.map(d => ({
+        itemId: d.itemId,
+        itemName: d.itemName ?? '',
+        description: d.description ?? '',
+        quantity: d.quantity,
+        unitPrice: d.unitPrice,
+        discountPercent: d.discountPercent ?? 0,
+        locationId: d.locationId,
+      })) ?? [],
+    })
+  }, [invoice, reset])
+
+  const watchedDetails = watch('details')
+  const watchedTax = watch('taxRate')
+  const watchedDiscount = watch('discountAmount')
+
+  const grossTotal = watchedDetails?.reduce((sum, d) =>
+    sum + (Number(d.quantity) * Number(d.unitPrice)), 0) ?? 0
+
+  const subTotal = watchedDetails?.reduce((sum, d) => {
+    const disc = 1 - (Number(d.discountPercent) / 100)
+    return sum + (Number(d.quantity) * Number(d.unitPrice) * disc)
+  }, 0) ?? 0
+
+  const lineDiscountTotal = grossTotal - subTotal
+  const masterDiscount = Number(watchedDiscount) || 0
+  const taxAmount = subTotal * ((Number(watchedTax) || 0) / 100)
+  const total = subTotal + taxAmount - masterDiscount
+
+  const saveMutation = useMutation({
+    mutationFn: (data) => invoicesApi.update(Number(id), data),
+    onSuccess: (_, variables) => {
+      toast.success('Invoice updated')
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      qc.invalidateQueries({ queryKey: ['invoice', id] })
+      if (variables._resend) {
+        setPendingSave(null)
+        setShowResendModal(true)
+      } else {
+        navigate(`/invoices/${id}`)
+      }
+    },
+    onError: (err) => toast.error(err?.response?.data?.message ?? 'Failed to save invoice'),
+  })
+
+  const resendMutation = useMutation({
+    mutationFn: () => invoicesApi.sendEmail(Number(id)),
+    onSuccess: (res) => { toast.success(res.data?.message ?? 'Email sent'); setShowResendModal(false); navigate(`/invoices/${id}`) },
+    onError: (err) => { toast.error(err?.response?.data?.message ?? 'Failed to send email'); setShowResendModal(false); navigate(`/invoices/${id}`) },
+  })
+
+  const handleSave = (data, resend = false) => {
+    const payload = {
+      ...data,
+      id: Number(id),
+      status: invoice.status,
+      _resend: resend,
+    }
+    saveMutation.mutate(payload)
+  }
+
+  const handleItemSelect = (index, itemId) => {
+    const item = items.find(i => i.id === Number(itemId))
+    if (item) {
+      setValue(`details.${index}.itemId`, item.id)
+      setValue(`details.${index}.itemName`, item.name)
+      setValue(`details.${index}.unitPrice`, item.price)
+    }
+  }
+
+  const handleMasterLocationChange = (e) => {
+    const locationId = e.target.value ? Number(e.target.value) : undefined
+    setValue('locationId', locationId)
+    if (!locationId) return
+    const details = getValues('details')
+    const hasExisting = details.some(d => d.locationId)
+    if (hasExisting) {
+      const loc = locations.find(l => l.id === locationId)
+      setConfirmReplace({ locationId, locationName: loc?.name ?? '' })
+    } else {
+      details.forEach((_, i) => setValue(`details.${i}.locationId`, locationId))
+    }
+  }
+
+  const applyLocationToDetails = (replaceAll) => {
+    const { locationId, details } = getValues()
+    details.forEach((d, i) => {
+      if (replaceAll || !d.locationId) setValue(`details.${i}.locationId`, locationId)
+    })
+    setConfirmReplace(null)
+  }
+
+  const locationOptions = [{ value: '', label: 'No location' }, ...locations.map(l => ({ value: l.id, label: l.city ? `${l.name} — ${l.city}` : l.name }))]
+
+  if (loadingInvoice) return <div className="flex justify-center py-16"><Spinner /></div>
+  if (!invoice) return null
+
+  const isApproved = invoice.status === 5
+
+  return (
+    <div>
+      <PageHeader
+        title={`Edit ${invoice.invoiceNumber}`}
+        breadcrumbs={[{ label: 'Invoices', href: '/invoices' }, { label: invoice.invoiceNumber, href: `/invoices/${id}` }, { label: 'Edit' }]}
+        action={<Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="w-3.5 h-3.5" />} onClick={() => navigate(-1)}>Back</Button>}
+      />
+
+      <form onSubmit={e => e.preventDefault()}>
+        <div className="flex flex-col gap-5">
+
+          {/* Row 1 — Tabbed: Invoice / Customer / Payment */}
+          <Card>
+            {(() => {
+              const tabErrors = {
+                Invoice: !!(errors.invoiceDate || errors.dueDate || errors.locationId || errors.taxRate),
+                Customer: !!(errors.customerName || errors.customerEmail),
+                Payment: false,
+              }
+              return (
+                <div className="flex gap-1 border-b border-gray-200 mb-4">
+                  {['Invoice', 'Customer', 'Payment'].map(tab => (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => setActiveTab(tab)}
+                      className={`relative px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                        activeTab === tab
+                          ? 'text-brand-600 border-b-2 border-brand-600 -mb-px'
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      {tab}
+                      {tabErrors[tab] && (
+                        <span className="absolute top-1.5 right-1 w-1.5 h-1.5 rounded-full bg-red-500" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )
+            })()}
+
+            {activeTab === 'Invoice' && (
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="Invoice date" type="date" required
+                  error={errors.invoiceDate?.message}
+                  {...register('invoiceDate', {
+                    onChange: e => {
+                      const newInvoiceDate = e.target.value
+                      const dueDate = getValues('dueDate')
+                      if (dueDate && dueDate < newInvoiceDate) setValue('dueDate', newInvoiceDate)
+                    }
+                  })}
+                />
+                <Input
+                  label="Due date" type="date"
+                  min={watch('invoiceDate')}
+                  error={errors.dueDate?.message}
+                  {...register('dueDate')}
+                />
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">
+                    Location <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    className={`w-full h-9 rounded-lg border bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 ${
+                      errors.locationId ? 'border-red-400 ring-1 ring-red-400' : 'border-gray-300'
+                    }`}
+                    onChange={handleMasterLocationChange}
+                    value={watch('locationId') ?? ''}
+                  >
+                    {locationOptions.map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                  {errors.locationId && (
+                    <p className="text-xs text-red-500 mt-1">{errors.locationId.message}</p>
+                  )}
+                </div>
+                <Input label="Tax rate (%)" type="number" step="0.1" required error={errors.taxRate?.message} {...register('taxRate')} />
+                <Input label="Discount (MYR)" type="number" step="0.01" {...register('discountAmount')} />
+                <div className="col-span-2">
+                  <Textarea label="Notes" rows={2} {...register('notes')} />
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'Payment' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Payment terms</label>
+                  <select
+                    className="w-full h-9 rounded-lg border border-gray-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    value={watch('paymentTerms') ?? ''}
+                    onChange={e => {
+                      const name = e.target.value
+                      setValue('paymentTerms', name)
+                      const term = paymentTerms.find(t => t.name === name)
+                      if (term?.dueDays != null) {
+                        const invoiceDate = getValues('invoiceDate')
+                        if (invoiceDate) {
+                          const due = new Date(invoiceDate)
+                          due.setDate(due.getDate() + term.dueDays)
+                          setValue('dueDate', due.toISOString().split('T')[0])
+                        }
+                      }
+                    }}
+                  >
+                    <option value="">Select a term…</option>
+                    {paymentTerms.map(t => (
+                      <option key={t.id} value={t.name}>{t.name}{t.dueDays != null ? ` (${t.dueDays} days)` : ''}</option>
+                    ))}
+                  </select>
+                </div>
+                <Input label="Payment reference" placeholder="e.g. PO-12345" {...register('paymentReference')} />
+                <div className="col-span-2">
+                  <Textarea label="Payment notes (bank details, instructions)" rows={4} {...register('paymentNotes')} />
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'Customer' && (
+              <div className="grid grid-cols-2 gap-4">
+                <Input label="Customer name" required error={errors.customerName?.message} {...register('customerName')} />
+                <Input label="Customer email" type="email" error={errors.customerEmail?.message} {...register('customerEmail')} />
+                <PhoneInput
+                  label="Customer phone"
+                  countryCodeProps={register('customerPhoneCountryCode')}
+                  phoneProps={register('customerPhone')}
+                  colSpan2={false}
+                />
+                <div className="col-span-2">
+                  <Textarea label="Address" rows={2} {...register('customerAddress')} />
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {/* Row 2 — Line items */}
+          <Card>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-gray-900">Line items</h2>
+              <Button
+                type="button" size="sm" variant="outline"
+                leftIcon={<Plus className="w-3.5 h-3.5" />}
+                onClick={() => append({ itemName: '', quantity: 1, unitPrice: 0, discountPercent: 0 })}
+              >
+                Add line
+              </Button>
+            </div>
+
+            {fields.length === 0 ? (
+              <Empty icon={<FileText className="w-8 h-8" />} title="No line items" description="Add at least one item to this invoice." />
+            ) : (
+              <>
+                <div className="hidden sm:grid grid-cols-12 gap-2 px-3 mb-1 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  <div className="col-span-2">Item</div>
+                  <div className="col-span-2">Name</div>
+                  <div className="col-span-2">Location</div>
+                  <div className="col-span-1 text-center">Qty</div>
+                  <div className="col-span-2 text-right">Unit price</div>
+                  <div className="col-span-1 text-right">Disc %</div>
+                  <div className="col-span-1 text-right">Total</div>
+                  <div className="col-span-1" />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  {fields.map((field, index) => {
+                    const d = watchedDetails?.[index]
+                    const lineTotal = d ? Number(d.quantity) * Number(d.unitPrice) * (1 - Number(d.discountPercent) / 100) : 0
+                    return (
+                      <div key={field.id} className="grid grid-cols-12 gap-2 items-center px-3 py-2 bg-gray-50 rounded-lg">
+                        <div className="col-span-12 sm:col-span-2">
+                          <select
+                            className="w-full h-9 rounded-lg border border-gray-300 bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                            onChange={e => handleItemSelect(index, e.target.value)}
+                            defaultValue=""
+                          >
+                            <option value="">Custom…</option>
+                            {items.map(item => (
+                              <option key={item.id} value={item.id}>{item.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="col-span-12 sm:col-span-2">
+                          <Input
+                            placeholder="Item name"
+                            error={errors.details?.[index]?.itemName?.message}
+                            {...register(`details.${index}.itemName`)}
+                          />
+                        </div>
+                        <div className="col-span-12 sm:col-span-2">
+                          <select
+                            className="w-full h-9 rounded-lg border border-gray-300 bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                            {...register(`details.${index}.locationId`)}
+                          >
+                            {locationOptions.map(o => (
+                              <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="col-span-4 sm:col-span-1">
+                          <Input type="number" min="1" placeholder="Qty"
+                            error={errors.details?.[index]?.quantity?.message}
+                            {...register(`details.${index}.quantity`)} />
+                        </div>
+                        <div className="col-span-4 sm:col-span-2">
+                          <Input type="number" step="0.01" placeholder="0.00" className="text-right"
+                            error={errors.details?.[index]?.unitPrice?.message}
+                            {...register(`details.${index}.unitPrice`)} />
+                        </div>
+                        <div className="col-span-3 sm:col-span-1">
+                          <Input type="number" step="0.1" placeholder="0" className="text-right" {...register(`details.${index}.discountPercent`)} />
+                        </div>
+                        <div className="col-span-4 sm:col-span-1 text-right text-sm font-semibold text-gray-800 pr-1">
+                          {formatCurrency(lineTotal)}
+                        </div>
+                        <div className="col-span-1 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => remove(index)}
+                            className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+            {errors.details?.message && (
+              <p className="text-xs text-red-500 mt-2">{errors.details.message}</p>
+            )}
+          </Card>
+
+          {/* Row 3 — Summary */}
+          <Card>
+            <div className="flex justify-end">
+              <div className="w-80">
+                <div className="flex flex-col gap-1.5 text-sm">
+                  <div className="flex justify-between text-gray-500">
+                    <span>Gross</span><span className="font-medium text-gray-800">{formatCurrency(grossTotal)}</span>
+                  </div>
+                  {lineDiscountTotal > 0 && (
+                    <div className="flex justify-between text-gray-500">
+                      <span>Line discount</span><span className="font-medium text-red-500">−{formatCurrency(lineDiscountTotal)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-gray-500">
+                    <span>Subtotal</span><span className="font-medium text-gray-800">{formatCurrency(subTotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-500">
+                    <span>Tax ({Number(watchedTax) || 0}%)</span><span className="font-medium text-gray-800">{formatCurrency(taxAmount)}</span>
+                  </div>
+                  {masterDiscount > 0 && (
+                    <div className="flex justify-between text-gray-500">
+                      <span>Discount</span><span className="font-medium text-red-500">−{formatCurrency(masterDiscount)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between pt-2 border-t border-gray-200 text-base font-bold text-gray-900">
+                    <span>Total</span><span>{formatCurrency(total)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          <div className="flex gap-3 justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              loading={saveMutation.isPending}
+              onClick={handleSubmit(d => handleSave(d, false), e => toastFormErrors(e, toast))}
+            >
+              Save invoice
+            </Button>
+            {isApproved && (
+              <Button
+                type="button"
+                variant="success"
+                loading={saveMutation.isPending}
+                onClick={handleSubmit(d => handleSave(d, true), e => toastFormErrors(e, toast))}
+              >
+                Save &amp; resend email
+              </Button>
+            )}
+          </div>
+
+        </div>
+      </form>
+
+      <ConfirmDialog
+        open={confirmReplace !== null}
+        onClose={() => setConfirmReplace(null)}
+        onConfirm={() => applyLocationToDetails(true)}
+        title="Replace line item locations?"
+        message={`Some line items already have a location set. Replace them all with "${confirmReplace?.locationName}"? Empty lines will always be filled.`}
+        confirmLabel="Replace all"
+        cancelLabel="Fill empty only"
+        variant="warning"
+        onCancel={() => applyLocationToDetails(false)}
+      />
+
+      <SendEmailModal
+        open={showResendModal}
+        onClose={() => { setShowResendModal(false); navigate(`/invoices/${id}`) }}
+        onSend={() => resendMutation.mutate()}
+        loading={resendMutation.isPending}
+        customerEmail={invoice?.customerEmail}
+        invoiceId={Number(id)}
       />
     </div>
   )

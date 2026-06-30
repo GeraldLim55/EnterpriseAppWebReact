@@ -17,6 +17,7 @@ const ItemDetailPage = lazy(() => import('@/features/items/ItemDetailPage'))
 const InvoicesPage = lazy(() => import('@/features/invoices/InvoicesPage'))
 const InvoiceDetailPage = lazy(() => import('@/features/invoices/InvoiceDetailPage'))
 const InvoiceCreatePage = lazy(() => import('@/features/invoices/InvoiceCreatePage'))
+const InvoiceEditPage = lazy(() => import('@/features/invoices/InvoiceEditPage'))
 const AccountPage = lazy(() => import('@/features/profile/AccountPage'))
 const ProfilePage = lazy(() => import('@/features/profile/ProfilePage'))
 const UsersPage = lazy(() => import('@/features/users/UsersPage'))
@@ -90,6 +91,7 @@ export default function AppRouter() {
           <Route path="/invoices" element={<InvoicesPage />} />
           <Route path="/invoices/create" element={<InvoiceCreatePage />} />
           <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
+          <Route path="/invoices/:id/edit" element={<InvoiceEditPage />} />
         </Route>
 
         {/* Protected — Manager+ */}

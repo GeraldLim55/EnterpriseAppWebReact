@@ -105,6 +105,12 @@ export const invoicesApi = {
 
   duplicate: (id) =>
     client.post(`/invoices/${id}/duplicate`),
+
+  sendEmail: (id) =>
+    client.post(`/invoices/${id}/send-email`),
+
+  downloadPdf: (id) =>
+    client.get(`/invoices/${id}/pdf`, { responseType: 'blob' }),
 }
 
 // ─── Account API — basic account info update (PUT /users/me) ─────────────
