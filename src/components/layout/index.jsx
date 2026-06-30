@@ -115,6 +115,12 @@ function NavGroup({ group, collapsed, onChildClick }) {
 function Sidebar({ collapsed, onToggle }) {
   const { session, hasMinLevel, hasModule, logout } = useAuth()
   const navigate = useNavigate()
+  const { data: company } = useQuery({
+    queryKey: ['company-profile'],
+    queryFn: () => companyApi.get().then(r => r.data?.data),
+    staleTime: 1000 * 60 * 10,
+  })
+  const displayName = company?.companyName || session?.tenantName || 'EnterpriseApp'
 
   const handleLogout = async () => {
     await logout()
@@ -135,7 +141,7 @@ function Sidebar({ collapsed, onToggle }) {
           <BarChart3 className="w-4 h-4 text-white" />
         </div>
         {!collapsed && (
-          <span className="text-sm font-semibold text-gray-900">EnterpriseApp</span>
+          <span className="text-sm font-semibold text-gray-900 truncate">{displayName}</span>
         )}
       </div>
 
@@ -270,7 +276,7 @@ function MobileDrawer({ open, onClose }) {
             <div className="w-7 h-7 rounded-lg bg-brand-600 flex items-center justify-center">
               <BarChart3 className="w-4 h-4 text-white" />
             </div>
-            <span className="text-sm font-semibold text-gray-900">EnterpriseApp</span>
+            <span className="text-sm font-semibold text-gray-900 truncate">{displayName}</span>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100">
             <X className="w-4 h-4" />
