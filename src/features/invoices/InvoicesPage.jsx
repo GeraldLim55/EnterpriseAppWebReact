@@ -295,7 +295,7 @@ function InvoicePreviewModal({ open, onClose, invoiceId }) {
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-gray-900/80 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[200] flex flex-col bg-gray-900/80 backdrop-blur-sm">
       {/* toolbar */}
       <div className="flex items-center justify-between px-4 py-2 bg-white border-b shrink-0">
         <span className="font-semibold text-gray-800 text-sm">Invoice Preview</span>
