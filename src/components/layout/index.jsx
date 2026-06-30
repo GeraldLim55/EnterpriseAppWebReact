@@ -18,7 +18,6 @@ const NAV_ITEMS = [
   { label: 'Users', href: '/users', icon: Users, minLevel: ROLE_LEVELS.Admin },
   { label: 'Profile', href: '/profile', icon: Contact, moduleKey: MODULES.Profile },
   { label: 'Account', href: '/account', icon: UserCircle },
-  { label: 'Settings', href: '/settings', icon: Settings, minLevel: ROLE_LEVELS.Admin },
 ]
 
 const NAV_GROUPS = [
@@ -34,19 +33,34 @@ const NAV_GROUPS = [
       { label: 'Payment Terms', href: '/maintenance/payment-terms', icon: Clock },
     ],
   },
+  {
+    label: 'Settings',
+    icon: Settings,
+    basePath: '/settings',
+    minLevel: ROLE_LEVELS.Admin,
+    children: [
+      { label: 'General', href: '/settings', icon: Settings },
+      { label: 'Company Profile', href: '/settings/company', icon: Building2 },
+      { label: 'Invoice Settings', href: '/settings/invoice', icon: FileText, moduleKey: MODULES.Erp },
+    ],
+  },
 ]
 
 // ─── Nav Group (expandable dropdown) ─────────────────────────────────────
 function NavGroup({ group, collapsed, onChildClick }) {
   const location = useLocation()
+  const { hasModule } = useAuth()
+  const visibleChildren = group.children.filter(c => !c.moduleKey || hasModule(c.moduleKey))
   const isGroupActive = location.pathname.startsWith(group.basePath)
   const [open, setOpen] = useState(isGroupActive)
+
+  if (!visibleChildren.length) return null
 
   if (collapsed) {
     // In collapsed mode show only the group icon, linking to the first child
     return (
       <NavLink
-        to={group.children[0].href}
+        to={visibleChildren[0].href}
         className={cn(
           'nav-link mb-0.5 justify-center px-0 w-10 mx-auto',
           isGroupActive && 'active',
@@ -78,7 +92,7 @@ function NavGroup({ group, collapsed, onChildClick }) {
       </button>
       {open && (
         <div className="mt-0.5 ml-3 pl-3 border-l border-gray-100">
-          {group.children.map(child => (
+          {visibleChildren.map(child => (
             <NavLink
               key={child.href}
               to={child.href}
@@ -202,6 +216,7 @@ function Sidebar({ collapsed, onToggle }) {
 
 // ─── Top Header ───────────────────────────────────────────────────────────
 function Header({ onMenuToggle }) {
+  const { session } = useAuth()
   return (
     <header className="h-14 flex items-center justify-between px-5 border-b border-gray-200 bg-white flex-shrink-0">
       <button
@@ -210,6 +225,11 @@ function Header({ onMenuToggle }) {
       >
         <Menu className="w-5 h-5" />
       </button>
+      {session?.tenantName && (
+        <span className="hidden lg:block text-sm font-semibold text-gray-700 ml-4">
+          {session.tenantName}
+        </span>
+      )}
       <div className="flex items-center gap-2 ml-auto">
         <button className="relative p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors">
           <Bell className="w-4 h-4" />

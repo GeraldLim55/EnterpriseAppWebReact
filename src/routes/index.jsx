@@ -23,6 +23,7 @@ const ProfilePage = lazy(() => import('@/features/profile/ProfilePage'))
 const UsersPage = lazy(() => import('@/features/users/UsersPage'))
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage'))
 const CompanySettingsPage = lazy(() => import('@/features/settings/CompanySettingsPage'))
+const InvoiceSettingsPage = lazy(() => import('@/features/settings/InvoiceSettingsPage'))
 const NotFoundPage = lazy(() => import('./NotFoundPage'))
 const BrandMaintenancePage = lazy(() => import('@/features/maintenance/BrandMaintenancePage'))
 const CategoryMaintenancePage = lazy(() => import('@/features/maintenance/CategoryMaintenancePage'))
@@ -108,6 +109,7 @@ export default function AppRouter() {
 
         {/* Protected — Admin+ and ERP module */}
         <Route element={<ProtectedRoute minLevel={80} moduleKey={MODULES.Erp} />}>
+          <Route path="/settings/invoice" element={<InvoiceSettingsPage />} />
           <Route path="/maintenance/brand" element={<BrandMaintenancePage />} />
           <Route path="/maintenance/category" element={<CategoryMaintenancePage />} />
           <Route path="/maintenance/location" element={<LocationMaintenancePage />} />

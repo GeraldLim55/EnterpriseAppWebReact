@@ -114,6 +114,15 @@ export const invoicesApi = {
 
   getPreviewHtml: (id) =>
     client.get(`/invoices/${id}/html`),
+
+  getSettings: () =>
+    client.get('/invoices/settings'),
+
+  saveSettings: (data) =>
+    client.put('/invoices/settings', data),
+
+  getNextInvoiceNumber: () =>
+    client.get('/invoices/settings').then(r => r.data?.data?.nextInvoiceNumber ?? ''),
 }
 
 // ─── Account API — basic account info update (PUT /users/me) ─────────────

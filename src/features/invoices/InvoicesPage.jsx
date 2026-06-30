@@ -490,6 +490,12 @@ export function InvoiceCreatePage() {
     staleTime: 1000 * 60 * 5,
   })
 
+  const { data: invoiceSettings } = useQuery({
+    queryKey: ['invoice-settings'],
+    queryFn: () => invoicesApi.getSettings().then(r => r.data?.data),
+    staleTime: 1000 * 60 * 5,
+  })
+
   const prefill = routeState?.prefill
   const { register, control, handleSubmit, watch, setValue, getValues, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(invoiceSchema),
@@ -509,6 +515,7 @@ export function InvoiceCreatePage() {
       paymentNotes: prefill.paymentNotes ?? '',
       details: prefill.details,
       status: 1,
+      invoiceNumber: '',
     } : {
       invoiceDate: new Date().toISOString().split('T')[0],
       taxRate: 6, discountAmount: 0,
@@ -517,10 +524,17 @@ export function InvoiceCreatePage() {
       paymentNotes: company?.paymentNotes ?? '',
       details: [{ itemName: '', quantity: 1, unitPrice: 0, discountPercent: 0 }],
       status: 1,
+      invoiceNumber: '',
     },
   })
 
   const { fields, append, remove } = useFieldArray({ control, name: 'details' })
+
+  useEffect(() => {
+    if (invoiceSettings?.nextInvoiceNumber) {
+      setValue('invoiceNumber', invoiceSettings.nextInvoiceNumber)
+    }
+  }, [invoiceSettings]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-select the default location once the lookup loads
   useEffect(() => {
@@ -646,7 +660,7 @@ export function InvoiceCreatePage() {
             {/* Tab bar with error indicators */}
             {(() => {
               const tabErrors = {
-                Invoice: !!(errors.invoiceDate || errors.dueDate || errors.locationId || errors.taxRate),
+                Invoice: !!(errors.invoiceNumber || errors.invoiceDate || errors.dueDate || errors.locationId || errors.taxRate),
                 Customer: !!(errors.customerName || errors.customerEmail),
                 Payment: false,
               }
@@ -675,6 +689,13 @@ export function InvoiceCreatePage() {
 
             {activeTab === 'Invoice' && (
               <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="Invoice number"
+                  placeholder="Auto-generated if left empty"
+                  error={errors.invoiceNumber?.message}
+                  {...register('invoiceNumber')}
+                />
+                <div />
                 <Input
                   label="Invoice date" type="date" required
                   error={errors.invoiceDate?.message}
