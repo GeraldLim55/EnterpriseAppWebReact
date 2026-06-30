@@ -284,13 +284,20 @@ function SendEmailModal({ open, onClose, onSend, loading, customerEmail, invoice
   const [previewing, setPreviewing] = useState(false)
 
   const handlePreview = async () => {
-    if (!invoiceId) return
+    if (!invoiceId || previewing) return
     setPreviewing(true)
     try {
       const res = await invoicesApi.downloadPdf(invoiceId)
       const blob = new Blob([res.data], { type: 'application/pdf' })
       const url = URL.createObjectURL(blob)
-      window.open(url, '_blank')
+      // Use anchor click — avoids browsers treating window.open(blob) as a download
+      const a = document.createElement('a')
+      a.href = url
+      a.target = '_blank'
+      a.rel = 'noopener noreferrer'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
       setTimeout(() => URL.revokeObjectURL(url), 30000)
     } catch {
       toast.error('Failed to load PDF preview')
