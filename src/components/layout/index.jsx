@@ -1,4 +1,6 @@
 import React, { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { companyApi } from '@/api'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Package, FileText, Users, Settings,
@@ -217,6 +219,12 @@ function Sidebar({ collapsed, onToggle }) {
 // ─── Top Header ───────────────────────────────────────────────────────────
 function Header({ onMenuToggle }) {
   const { session } = useAuth()
+  const { data: company } = useQuery({
+    queryKey: ['company-profile'],
+    queryFn: () => companyApi.get().then(r => r.data?.data),
+    staleTime: 1000 * 60 * 10,
+  })
+  const displayName = company?.companyName || session?.tenantName
   return (
     <header className="h-14 flex items-center justify-between px-5 border-b border-gray-200 bg-white flex-shrink-0">
       <button
@@ -225,9 +233,9 @@ function Header({ onMenuToggle }) {
       >
         <Menu className="w-5 h-5" />
       </button>
-      {session?.tenantName && (
+      {displayName && (
         <span className="hidden lg:block text-sm font-semibold text-gray-700 ml-4">
-          {session.tenantName}
+          {displayName}
         </span>
       )}
       <div className="flex items-center gap-2 ml-auto">
