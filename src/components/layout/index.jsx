@@ -234,7 +234,7 @@ function Header({ onMenuToggle }) {
         <Menu className="w-5 h-5" />
       </button>
       {displayName && (
-        <span className="hidden lg:block text-sm font-semibold text-gray-700 ml-4">
+        <span className="text-sm font-semibold text-gray-700 ml-4 truncate max-w-[200px]">
           {displayName}
         </span>
       )}
