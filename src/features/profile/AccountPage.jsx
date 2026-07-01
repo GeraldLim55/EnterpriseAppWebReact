@@ -1,7 +1,9 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Eye, Lock } from 'lucide-react'
+import { Eye, Lock, ShieldCheck, ShieldOff } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import QRCode from 'qrcode'
 import { authApi, accountApi } from '@/api'
 import { PageHeader } from '@/components/layout'
 import { Button, Input, Card, CardHeader } from '@/components/ui'
@@ -9,7 +11,6 @@ import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useAuth } from '@/context/AuthContext'
 import toast from 'react-hot-toast'
 import { toastFormErrors } from '@/lib/utils'
-import { useState } from 'react'
 
 export default function AccountPage() {
   const { session } = useAuth()
@@ -19,6 +20,7 @@ export default function AccountPage() {
       <PageHeader title="Account" description="Manage your account credentials and personal details." breadcrumbs={[{ label: 'Account' }]} />
       <div className="flex flex-col gap-6">
         <AccountInfoForm session={session} />
+        <TwoFactorForm />
         <ChangePasswordForm />
       </div>
     </div>
@@ -80,6 +82,135 @@ function AccountInfoForm({ session }) {
           <Button type="submit" loading={isSubmitting}>Save changes</Button>
         </div>
       </form>
+    </Card>
+  )
+}
+
+// ─── Two-Factor Authentication ────────────────────────────────────────────
+function TwoFactorForm() {
+  const [step, setStep] = useState('idle') // idle | setup | enable | disable
+  const [setupData, setSetupData] = useState(null) // { qrCodeUri, manualKey }
+  const [loading, setLoading] = useState(false)
+  const [enabled, setEnabled] = useState(false)
+  const [code, setCode] = useState('')
+  const canvasRef = useRef(null)
+
+  useEffect(() => {
+    if (setupData?.qrCodeUri && canvasRef.current) {
+      QRCode.toCanvas(canvasRef.current, setupData.qrCodeUri, { width: 180, margin: 1 })
+    }
+  }, [setupData])
+
+  const startSetup = async () => {
+    setLoading(true)
+    try {
+      const res = await authApi.setupTwoFactor()
+      if (!res.data.success) throw new Error(res.data.message)
+      setSetupData(res.data.data)
+      setStep('setup')
+    } catch (err) {
+      toast.error(err?.response?.data?.message ?? 'Failed to start 2FA setup.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const confirmEnable = async () => {
+    setLoading(true)
+    try {
+      const res = await authApi.enableTwoFactor({ secret: setupData.manualKey, code })
+      if (!res.data.success) throw new Error(res.data.message)
+      toast.success('Two-factor authentication enabled.')
+      setEnabled(true)
+      setStep('idle')
+      setCode('')
+    } catch (err) {
+      toast.error(err?.response?.data?.message ?? 'Invalid code. Try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const confirmDisable = async () => {
+    setLoading(true)
+    try {
+      const res = await authApi.disableTwoFactor({ code })
+      if (!res.data.success) throw new Error(res.data.message)
+      toast.success('Two-factor authentication disabled.')
+      setEnabled(false)
+      setStep('idle')
+      setCode('')
+    } catch (err) {
+      toast.error(err?.response?.data?.message ?? 'Invalid code. Try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader
+        title="Two-factor authentication"
+        description="Add an extra layer of security to your account using an authenticator app."
+      />
+      <div className="max-w-sm space-y-4">
+        {step === 'idle' && (
+          <div className="flex items-center gap-4">
+            <div className={`flex items-center gap-2 text-sm font-medium ${enabled ? 'text-green-600' : 'text-gray-500'}`}>
+              {enabled ? <ShieldCheck className="w-4 h-4" /> : <ShieldOff className="w-4 h-4" />}
+              {enabled ? '2FA is enabled' : '2FA is not enabled'}
+            </div>
+            {enabled ? (
+              <Button variant="outline" size="sm" onClick={() => setStep('disable')}>Disable 2FA</Button>
+            ) : (
+              <Button size="sm" loading={loading} onClick={startSetup}>Enable 2FA</Button>
+            )}
+          </div>
+        )}
+
+        {step === 'setup' && setupData && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Scan this QR code with <strong>Google Authenticator</strong> or <strong>Authy</strong>.
+            </p>
+            <canvas ref={canvasRef} className="rounded-lg border border-gray-200" />
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Or enter this key manually:</p>
+              <code className="text-xs bg-gray-100 px-2 py-1 rounded font-mono break-all">{setupData.manualKey}</code>
+            </div>
+            <Input
+              label="Enter the 6-digit code to confirm"
+              placeholder="000000"
+              maxLength={6}
+              inputMode="numeric"
+              value={code}
+              onChange={e => setCode(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <Button loading={loading} onClick={confirmEnable}>Confirm & Enable</Button>
+              <Button variant="outline" onClick={() => { setStep('idle'); setCode(''); }}>Cancel</Button>
+            </div>
+          </div>
+        )}
+
+        {step === 'disable' && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">Enter your authenticator code to disable 2FA.</p>
+            <Input
+              label="Authenticator code"
+              placeholder="000000"
+              maxLength={6}
+              inputMode="numeric"
+              value={code}
+              onChange={e => setCode(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <Button variant="destructive" loading={loading} onClick={confirmDisable}>Disable 2FA</Button>
+              <Button variant="outline" onClick={() => { setStep('idle'); setCode(''); }}>Cancel</Button>
+            </div>
+          </div>
+        )}
+      </div>
     </Card>
   )
 }

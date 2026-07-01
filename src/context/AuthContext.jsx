@@ -41,7 +41,18 @@ export function AuthProvider({ children }) {
     if (!res.data.success || !res.data.data) {
       throw new Error(res.data.message ?? 'Login failed')
     }
-    const { accessToken, refreshToken, session: userSession } = res.data.data
+    const loginData = res.data.data
+    if (loginData.twoFactorRequired) {
+      return { twoFactorRequired: true, twoFactorToken: loginData.twoFactorToken }
+    }
+    const { accessToken, refreshToken, session: userSession } = loginData
+    setTokens(accessToken, refreshToken)
+    localStorage.setItem(SESSION_KEY, JSON.stringify(userSession))
+    setSession(userSession)
+    return { twoFactorRequired: false }
+  }, [])
+
+  const completeLogin = useCallback((accessToken, refreshToken, userSession) => {
     setTokens(accessToken, refreshToken)
     localStorage.setItem(SESSION_KEY, JSON.stringify(userSession))
     setSession(userSession)
@@ -93,6 +104,7 @@ export function AuthProvider({ children }) {
         isAuthenticated: !!session && !!getAccessToken(),
         isLoading,
         login,
+        completeLogin,
         logout,
         hasRole,
         hasMinLevel,

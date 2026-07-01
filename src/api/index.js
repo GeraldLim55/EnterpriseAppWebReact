@@ -22,6 +22,21 @@ export const authApi = {
 
   register: (data) =>
     client.post('/auth/register', data),
+
+  verifyTwoFactor: (data) =>
+    client.post('/auth/2fa/verify', data),
+
+  setupTwoFactor: () =>
+    client.post('/auth/2fa/setup'),
+
+  enableTwoFactor: (data) =>
+    client.post('/auth/2fa/enable', data),
+
+  disableTwoFactor: (data) =>
+    client.post('/auth/2fa/disable', data),
+
+  googleLogin: (data) =>
+    client.post('/auth/google', data),
 }
 
 // ─── Users API ────────────────────────────────────────────────────────────
