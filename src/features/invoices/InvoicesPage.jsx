@@ -1484,9 +1484,6 @@ export function InvoiceEditPage() {
       // item has tracking — prompt per-SO
       const soNumber = activeSourcDocs.find(d => d.fromId === detail.fromDocId)?.fromDocNo ?? `SO #${detail.fromDocId}`
       setSoUnlinkConfirm({ index, fromDocId: detail.fromDocId, soNumber, allSos: false })
-    } else if (activeSourcDocs.length > 0) {
-      // item has no tracking (created before migration) — prompt to unlink all source docs
-      setSoUnlinkConfirm({ index, fromDocId: null, soNumber: null, allSos: true })
     } else {
       remove(index)
     }
