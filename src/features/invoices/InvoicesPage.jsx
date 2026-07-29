@@ -410,6 +410,9 @@ const lineSchema = z.object({
   quantity: z.coerce.number().int().min(1, 'Quantity must be at least 1'),
   unitPrice: z.coerce.number().min(0.01, 'Unit price must be greater than 0'),
   discountPercent: z.coerce.number().min(0).max(100).default(0),
+  fromDocId: z.number().optional().nullable(),
+  fromDocName: z.string().optional().nullable(),
+  fromDocDetailId: z.number().optional().nullable(),
 })
 
 const invoiceSchema = z.object({
