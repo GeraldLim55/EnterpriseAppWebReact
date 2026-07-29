@@ -108,7 +108,7 @@ export default function SalesOrdersPage() {
         >
           <Eye className="w-3.5 h-3.5" />
         </button>
-        {(row.status === 0 || row.status === 1) && (
+        {(row.status === 0 || row.status === 1 || (row.status === 2 && !row.transferToDocNo)) && (
           <button
             onClick={() => navigate(`/sales-orders/${row.id}/edit`)}
             className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300"
