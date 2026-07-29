@@ -996,6 +996,9 @@ export function InvoiceCreatePage() {
                     unitPrice: item.unitPrice,
                     discountPercent: item.discountPercent,
                     locationId: item.locationId || masterLocationId || undefined,
+                    fromDocId: so.id,
+                    fromDocName: 'SO',
+                    fromDocDetailId: item.id ?? null,
                   })
                 })
               } catch { /* ignore individual SO fetch errors */ }
@@ -1352,6 +1355,8 @@ export function InvoiceEditPage() {
   const [pendingSave, setPendingSave] = useState(null)
   const [showSoPicker, setShowSoPicker] = useState(false)
   const [linkedSoIds, setLinkedSoIds] = useState([])
+  const [unlinkedSoIds, setUnlinkedSoIds] = useState([])
+  const [soUnlinkConfirm, setSoUnlinkConfirm] = useState(null) // { index, fromDocId, soNumber }
 
   const { data: invoice, isLoading: loadingInvoice } = useQuery({
     queryKey: ['invoice', id],
@@ -1460,8 +1465,33 @@ export function InvoiceEditPage() {
       status: invoice.status,
       _resend: resend,
       linkedSalesOrderIds: linkedSoIds.length ? linkedSoIds : undefined,
+      unlinkedSalesOrderIds: unlinkedSoIds.length ? unlinkedSoIds : undefined,
     }
     saveMutation.mutate(payload)
+  }
+
+  const handleRemoveItem = (index) => {
+    const detail = getValues(`details.${index}`)
+    if (detail?.fromDocId && detail?.fromDocName === 'SO') {
+      const allDetails = getValues('details')
+      const soNumber = (invoice?.sourceDocuments ?? []).find(d => d.fromId === detail.fromDocId)?.fromDocNo ?? `SO #${detail.fromDocId}`
+      setSoUnlinkConfirm({ index, fromDocId: detail.fromDocId, soNumber })
+    } else {
+      remove(index)
+    }
+  }
+
+  const confirmSoUnlink = () => {
+    if (!soUnlinkConfirm) return
+    const allDetails = getValues('details')
+    const indicesToRemove = allDetails
+      .map((d, i) => d.fromDocId === soUnlinkConfirm.fromDocId && d.fromDocName === 'SO' ? i : -1)
+      .filter(i => i !== -1)
+      .reverse()
+    remove(indicesToRemove)
+    setUnlinkedSoIds(prev => [...new Set([...prev, soUnlinkConfirm.fromDocId])])
+    setLinkedSoIds(prev => prev.filter(id => id !== soUnlinkConfirm.fromDocId))
+    setSoUnlinkConfirm(null)
   }
 
   const handleItemSelect = (index, itemId) => {
@@ -1650,11 +1680,11 @@ export function InvoiceEditPage() {
                 Transfer from Sales Order
               </Button>
             </div>
-            {(invoice?.sourceDocuments ?? []).length === 0 && linkedSoIds.length === 0 ? (
+            {(invoice?.sourceDocuments ?? []).filter(d => !unlinkedSoIds.includes(d.fromId)).length === 0 && linkedSoIds.length === 0 ? (
               <p className="text-sm text-gray-400 px-5 pb-4">No source documents linked.</p>
             ) : (
               <div className="divide-y divide-gray-100 dark:divide-gray-700">
-                {(invoice?.sourceDocuments ?? []).map(doc => (
+                {(invoice?.sourceDocuments ?? []).filter(d => !unlinkedSoIds.includes(d.fromId)).map(doc => (
                   <div key={doc.id} className="flex items-center gap-3 px-5 py-3">
                     <FileText className="w-4 h-4 text-blue-500 flex-shrink-0" />
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300 flex-1">
@@ -1703,6 +1733,9 @@ export function InvoiceEditPage() {
                         unitPrice: item.unitPrice,
                         discountPercent: item.discountPercent,
                         locationId: item.locationId || masterLocationId || undefined,
+                        fromDocId: so.id,
+                        fromDocName: 'SO',
+                        fromDocDetailId: item.id ?? null,
                       })
                     })
                   } catch { /* ignore */ }
@@ -1797,7 +1830,7 @@ export function InvoiceEditPage() {
                         <div className="col-span-1 flex justify-end">
                           <button
                             type="button"
-                            onClick={() => remove(index)}
+                            onClick={() => handleRemoveItem(index)}
                             className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -1879,6 +1912,16 @@ export function InvoiceEditPage() {
         loading={resendMutation.isPending}
         customerEmail={invoice?.customerEmail}
         invoiceId={Number(id)}
+      />
+
+      <ConfirmDialog
+        open={!!soUnlinkConfirm}
+        onClose={() => setSoUnlinkConfirm(null)}
+        onConfirm={confirmSoUnlink}
+        title="Remove transferred items?"
+        message={`This item was transferred from ${soUnlinkConfirm?.soNumber ?? 'a Sales Order'}. All items from this SO will be removed and the SO will be unlinked from this invoice.`}
+        confirmLabel="Remove & unlink"
+        variant="danger"
       />
     </div>
   )
