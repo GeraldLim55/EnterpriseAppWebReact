@@ -126,13 +126,16 @@ function AccountInfoForm({ session }) {
 
 // ─── Two-Factor Authentication ────────────────────────────────────────────
 function TwoFactorForm() {
-  const { session } = useAuth()
   const [step, setStep] = useState('idle') // idle | setup | enable | disable
   const [setupData, setSetupData] = useState(null) // { qrCodeUri, manualKey }
   const [loading, setLoading] = useState(false)
-  const [enabled, setEnabled] = useState(session?.twoFactorEnabled ?? false)
+  const [enabled, setEnabled] = useState(false)
   const [code, setCode] = useState('')
   const canvasRef = useRef(null)
+
+  useEffect(() => {
+    authApi.getTwoFactorStatus().then(r => setEnabled(r.data?.data ?? false)).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (setupData?.qrCodeUri && canvasRef.current) {

@@ -35,6 +35,9 @@ export const authApi = {
   disableTwoFactor: (data) =>
     client.post('/auth/2fa/disable', data),
 
+  getTwoFactorStatus: () =>
+    client.get('/auth/2fa/status'),
+
   googleLogin: (data) =>
     client.post('/auth/google', data),
 }
