@@ -1,16 +1,16 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, CheckCircle, XCircle, FileText } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, FileText, Ban } from 'lucide-react'
 import { salesOrdersApi } from '@/api'
 import { PageHeader } from '@/components/layout'
-import { Button, Badge, Card, Spinner, Empty, Modal, Input } from '@/components/ui'
+import { Button, Badge, Card, Spinner, Empty, Modal, Input, ConfirmDialog } from '@/components/ui'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
 import toast from 'react-hot-toast'
 
-const STATUS_LABELS = { 0: 'Draft', 1: 'Pending', 2: 'Approved', 3: 'Rejected', 4: 'Cancelled' }
-const STATUS_VARIANTS = { 0: 'default', 1: 'info', 2: 'success', 3: 'danger', 4: 'warning' }
+const STATUS_LABELS = { 0: 'Draft', 1: 'Pending', 2: 'Approved', 3: 'Rejected', 4: 'Cancelled', 5: 'Void' }
+const STATUS_VARIANTS = { 0: 'default', 1: 'info', 2: 'success', 3: 'danger', 4: 'warning', 5: 'default' }
 
 function StatusBadge({ status }) {
   return <Badge variant={STATUS_VARIANTS[status]} dot>{STATUS_LABELS[status]}</Badge>
@@ -25,6 +25,7 @@ export default function SalesOrderDetailPage() {
 
   const [showRejectModal, setShowRejectModal] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
+  const [showVoidConfirm, setShowVoidConfirm] = useState(false)
 
   const { data: so, isLoading } = useQuery({
     queryKey: ['sales-order', id],
@@ -59,6 +60,17 @@ export default function SalesOrderDetailPage() {
     onError: (err) => toast.error(err?.response?.data?.message ?? 'Failed to reject'),
   })
 
+  const voidMutation = useMutation({
+    mutationFn: () => salesOrdersApi.void(Number(id)),
+    onSuccess: () => {
+      toast.success('Sales order voided')
+      qc.invalidateQueries({ queryKey: ['sales-order', id] })
+      qc.invalidateQueries({ queryKey: ['sales-orders'] })
+      setShowVoidConfirm(false)
+    },
+    onError: (err) => toast.error(err?.response?.data?.message ?? 'Failed to void'),
+  })
+
   if (isLoading) return <div className="flex justify-center py-20"><Spinner size="lg" /></div>
   if (!so) return <Empty title="Sales order not found" />
 
@@ -88,6 +100,12 @@ export default function SalesOrderDetailPage() {
                   Reject
                 </Button>
               </>
+            )}
+            {isManager && (so.status === 2 || so.status === 4) && !so.transferToDocNo && (
+              <Button size="sm" variant="danger" leftIcon={<Ban className="w-3.5 h-3.5" />}
+                onClick={() => setShowVoidConfirm(true)}>
+                Void
+              </Button>
             )}
             {canEdit && (
               <Button size="sm" variant="outline" onClick={() => navigate(`/sales-orders/${id}/edit`)}>Edit</Button>
@@ -250,6 +268,17 @@ export default function SalesOrderDetailPage() {
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={showVoidConfirm}
+        title="Void Sales Order"
+        message="Are you sure you want to void this sales order? It will remain visible but inactive."
+        onConfirm={() => voidMutation.mutate()}
+        onClose={() => setShowVoidConfirm(false)}
+        loading={voidMutation.isPending}
+        confirmLabel="Void"
+        variant="danger"
+      />
     </div>
   )
 }

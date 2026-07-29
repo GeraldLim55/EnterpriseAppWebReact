@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Trash2, CheckCircle, XCircle, Eye, Pencil } from 'lucide-react'
+import { Plus, Trash2, CheckCircle, XCircle, Eye, Pencil, Ban } from 'lucide-react'
 import { salesOrdersApi } from '@/api'
 import { PageHeader } from '@/components/layout'
 import {
@@ -11,8 +11,8 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
 import toast from 'react-hot-toast'
 
-const STATUS_LABELS = { 0: 'Draft', 1: 'Pending', 2: 'Approved', 3: 'Rejected', 4: 'Cancelled' }
-const STATUS_VARIANTS = { 0: 'default', 1: 'info', 2: 'success', 3: 'danger', 4: 'warning' }
+const STATUS_LABELS = { 0: 'Draft', 1: 'Pending', 2: 'Approved', 3: 'Rejected', 4: 'Cancelled', 5: 'Void' }
+const STATUS_VARIANTS = { 0: 'default', 1: 'info', 2: 'success', 3: 'danger', 4: 'warning', 5: 'default' }
 
 function StatusBadge({ status }) {
   return <Badge variant={STATUS_VARIANTS[status]} dot>{STATUS_LABELS[status]}</Badge>
@@ -29,6 +29,7 @@ export default function SalesOrdersPage() {
   const [deleteId, setDeleteId] = useState(null)
   const [rejectTarget, setRejectTarget] = useState(null)
   const [rejectReason, setRejectReason] = useState('')
+  const [voidId, setVoidId] = useState(null)
 
   const { data: res, isLoading } = useQuery({
     queryKey: ['sales-orders', filters],
@@ -51,6 +52,12 @@ export default function SalesOrdersPage() {
     mutationFn: ({ id, reason }) => salesOrdersApi.reject(id, reason),
     onSuccess: () => { toast.success('Sales order rejected'); qc.invalidateQueries({ queryKey: ['sales-orders'] }); setRejectTarget(null); setRejectReason('') },
     onError: (err) => toast.error(err?.response?.data?.message ?? 'Failed to reject'),
+  })
+
+  const voidMutation = useMutation({
+    mutationFn: (id) => salesOrdersApi.void(id),
+    onSuccess: () => { toast.success('Sales order voided'); qc.invalidateQueries({ queryKey: ['sales-orders'] }); setVoidId(null) },
+    onError: (err) => toast.error(err?.response?.data?.message ?? 'Failed to void'),
   })
 
   const orders = res?.data ?? []
@@ -117,6 +124,15 @@ export default function SalesOrdersPage() {
             <Pencil className="w-3.5 h-3.5" />
           </button>
         )}
+        {isManager && (row.status === 2 || row.status === 4) && !row.transferToDocNo && (
+          <button
+            onClick={() => setVoidId(row.id)}
+            className="p-1.5 rounded-lg text-gray-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:text-orange-600"
+            title="Void"
+          >
+            <Ban className="w-3.5 h-3.5" />
+          </button>
+        )}
         {(row.status === 0 || row.status === 1) && (
           <button
             onClick={() => setDeleteId(row.id)}
@@ -163,6 +179,17 @@ export default function SalesOrdersPage() {
         onConfirm={() => deleteMutation.mutate(deleteId)}
         onClose={() => setDeleteId(null)}
         loading={deleteMutation.isPending}
+      />
+
+      <ConfirmDialog
+        open={!!voidId}
+        title="Void Sales Order"
+        message="Are you sure you want to void this sales order? It will remain visible but inactive."
+        onConfirm={() => voidMutation.mutate(voidId)}
+        onClose={() => setVoidId(null)}
+        loading={voidMutation.isPending}
+        confirmLabel="Void"
+        variant="danger"
       />
 
       <Modal open={!!rejectTarget} onClose={() => setRejectTarget(null)} title="Reject Sales Order">

@@ -302,6 +302,9 @@ export const salesOrdersApi = {
   reject: (id, reason) =>
     client.post(`/salesorders/${id}/reject`, { reason }),
 
+  void: (id) =>
+    client.post(`/salesorders/${id}/void`),
+
   getSettings: () =>
     client.get('/salesorders/settings'),
 
