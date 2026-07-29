@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, CheckCircle, XCircle, FileText, Ban } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, FileText, Ban, Trash2 } from 'lucide-react'
 import { salesOrdersApi } from '@/api'
 import { PageHeader } from '@/components/layout'
 import { Button, Badge, Card, Spinner, Empty, Modal, Input, ConfirmDialog } from '@/components/ui'
@@ -26,6 +26,7 @@ export default function SalesOrderDetailPage() {
   const [showRejectModal, setShowRejectModal] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
   const [showVoidConfirm, setShowVoidConfirm] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const { data: so, isLoading } = useQuery({
     queryKey: ['sales-order', id],
@@ -58,6 +59,16 @@ export default function SalesOrderDetailPage() {
       setShowRejectModal(false)
     },
     onError: (err) => toast.error(err?.response?.data?.message ?? 'Failed to reject'),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: () => salesOrdersApi.delete(Number(id)),
+    onSuccess: () => {
+      toast.success('Sales order deleted')
+      qc.invalidateQueries({ queryKey: ['sales-orders'] })
+      navigate('/sales-orders')
+    },
+    onError: (err) => toast.error(err?.response?.data?.message ?? 'Failed to delete'),
   })
 
   const voidMutation = useMutation({
@@ -109,6 +120,12 @@ export default function SalesOrderDetailPage() {
             )}
             {canEdit && (
               <Button size="sm" variant="outline" onClick={() => navigate(`/sales-orders/${id}/edit`)}>Edit</Button>
+            )}
+            {isManager && (so.status === 0 || so.status === 1) && (
+              <Button size="sm" variant="danger" leftIcon={<Trash2 className="w-3.5 h-3.5" />}
+                onClick={() => setShowDeleteConfirm(true)}>
+                Delete
+              </Button>
             )}
             <Button size="sm" variant="ghost" leftIcon={<ArrowLeft className="w-3.5 h-3.5" />} onClick={() => navigate(-1)}>Back</Button>
           </div>
@@ -268,6 +285,17 @@ export default function SalesOrderDetailPage() {
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title="Delete Sales Order"
+        message="Are you sure you want to delete this sales order? This cannot be undone."
+        onConfirm={() => deleteMutation.mutate()}
+        onClose={() => setShowDeleteConfirm(false)}
+        loading={deleteMutation.isPending}
+        confirmLabel="Delete"
+        variant="danger"
+      />
 
       <ConfirmDialog
         open={showVoidConfirm}
