@@ -129,7 +129,7 @@ export default function InvoicesPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 11l6.364-6.364a2 2 0 012.828 2.828L11.828 13.828a2 2 0 01-1.414.586H9v-2a2 2 0 01.586-1.414z" />
             </svg>
           </button>
-          {row.status === 2 && (
+          {row.status !== 0 && (
             <button
               onClick={() => {
                 if (!row.customerEmail) {
