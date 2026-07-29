@@ -62,7 +62,7 @@ export default function SalesOrderDetailPage() {
   if (isLoading) return <div className="flex justify-center py-20"><Spinner size="lg" /></div>
   if (!so) return <Empty title="Sales order not found" />
 
-  const canEdit = so.status === 0 || so.status === 1
+  const canEdit = so.status === 0 || so.status === 1 || (so.status === 2 && !so.transferToDocNo)
 
   return (
     <div>
