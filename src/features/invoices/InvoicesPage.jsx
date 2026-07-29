@@ -1473,12 +1473,17 @@ export function InvoiceEditPage() {
     saveMutation.mutate(payload)
   }
 
+  const activeSourcDocs = (invoice?.sourceDocuments ?? []).filter(d => !unlinkedSoIds.includes(d.fromId))
+
   const handleRemoveItem = (index) => {
     const detail = getValues(`details.${index}`)
     if (detail?.fromDocId && detail?.fromDocName === 'SO') {
-      const allDetails = getValues('details')
-      const soNumber = (invoice?.sourceDocuments ?? []).find(d => d.fromId === detail.fromDocId)?.fromDocNo ?? `SO #${detail.fromDocId}`
-      setSoUnlinkConfirm({ index, fromDocId: detail.fromDocId, soNumber })
+      // item has tracking — prompt per-SO
+      const soNumber = activeSourcDocs.find(d => d.fromId === detail.fromDocId)?.fromDocNo ?? `SO #${detail.fromDocId}`
+      setSoUnlinkConfirm({ index, fromDocId: detail.fromDocId, soNumber, allSos: false })
+    } else if (activeSourcDocs.length > 0) {
+      // item has no tracking (created before migration) — prompt to unlink all source docs
+      setSoUnlinkConfirm({ index, fromDocId: null, soNumber: null, allSos: true })
     } else {
       remove(index)
     }
@@ -1487,13 +1492,21 @@ export function InvoiceEditPage() {
   const confirmSoUnlink = () => {
     if (!soUnlinkConfirm) return
     const allDetails = getValues('details')
-    const indicesToRemove = allDetails
-      .map((d, i) => d.fromDocId === soUnlinkConfirm.fromDocId && d.fromDocName === 'SO' ? i : -1)
-      .filter(i => i !== -1)
-      .reverse()
-    remove(indicesToRemove)
-    setUnlinkedSoIds(prev => [...new Set([...prev, soUnlinkConfirm.fromDocId])])
-    setLinkedSoIds(prev => prev.filter(id => id !== soUnlinkConfirm.fromDocId))
+    if (soUnlinkConfirm.allSos) {
+      // no tracking — remove clicked item only, unlink all source docs
+      remove(soUnlinkConfirm.index)
+      const allSoIds = activeSourcDocs.map(d => d.fromId)
+      setUnlinkedSoIds(prev => [...new Set([...prev, ...allSoIds])])
+      setLinkedSoIds([])
+    } else {
+      // tracked — remove all items from this SO and unlink it
+      const indicesToRemove = allDetails
+        .map((d, i) => d.fromDocId === soUnlinkConfirm.fromDocId && d.fromDocName === 'SO' ? i : -1)
+        .filter(i => i !== -1)
+      remove(indicesToRemove)
+      setUnlinkedSoIds(prev => [...new Set([...prev, soUnlinkConfirm.fromDocId])])
+      setLinkedSoIds(prev => prev.filter(id => id !== soUnlinkConfirm.fromDocId))
+    }
     setSoUnlinkConfirm(null)
   }
 
@@ -1683,11 +1696,11 @@ export function InvoiceEditPage() {
                 Transfer from Sales Order
               </Button>
             </div>
-            {(invoice?.sourceDocuments ?? []).filter(d => !unlinkedSoIds.includes(d.fromId)).length === 0 && linkedSoIds.length === 0 ? (
+            {activeSourcDocs.length === 0 && linkedSoIds.length === 0 ? (
               <p className="text-sm text-gray-400 px-5 pb-4">No source documents linked.</p>
             ) : (
               <div className="divide-y divide-gray-100 dark:divide-gray-700">
-                {(invoice?.sourceDocuments ?? []).filter(d => !unlinkedSoIds.includes(d.fromId)).map(doc => (
+                {activeSourcDocs.map(doc => (
                   <div key={doc.id} className="flex items-center gap-3 px-5 py-3">
                     <FileText className="w-4 h-4 text-blue-500 flex-shrink-0" />
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300 flex-1">
@@ -1922,7 +1935,9 @@ export function InvoiceEditPage() {
         onClose={() => setSoUnlinkConfirm(null)}
         onConfirm={confirmSoUnlink}
         title="Remove transferred items?"
-        message={`This item was transferred from ${soUnlinkConfirm?.soNumber ?? 'a Sales Order'}. All items from this SO will be removed and the SO will be unlinked from this invoice.`}
+        message={soUnlinkConfirm?.allSos
+          ? `This invoice has linked Sales Orders (${activeSourcDocs.map(d => d.fromDocNo).join(', ')}). Removing this item will unlink all of them. Continue?`
+          : `This item was transferred from ${soUnlinkConfirm?.soNumber}. All items from this SO will be removed and it will be unlinked from this invoice.`}
         confirmLabel="Remove & unlink"
         variant="danger"
       />
