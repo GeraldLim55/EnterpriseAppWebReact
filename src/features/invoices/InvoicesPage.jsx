@@ -1415,6 +1415,9 @@ export function InvoiceEditPage() {
         unitPrice: d.unitPrice,
         discountPercent: d.discountPercent ?? 0,
         locationId: d.locationId,
+        fromDocId: d.fromDocId ?? null,
+        fromDocName: d.fromDocName ?? null,
+        fromDocDetailId: d.fromDocDetailId ?? null,
       })) ?? [],
     })
   }, [invoice, reset])
