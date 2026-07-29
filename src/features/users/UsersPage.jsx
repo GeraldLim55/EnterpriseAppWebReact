@@ -236,18 +236,20 @@ function EditUserModal({ user, open, onClose, onSuccess }) {
             {getInitials(user.firstName, user.lastName, user.username)}
           </div>
           <div>
-            <p className="font-medium text-gray-900">{user.username}</p>
+            <p className="font-medium text-gray-900 dark:text-gray-100">{user.username}</p>
             <p className="text-sm text-gray-400">{user.email}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <Input label="First name" {...register('firstName')} />
           <Input label="Last name" {...register('lastName')} />
-          <PhoneInput
-            countryCodeProps={register('phoneCountryCode')}
-            phoneProps={register('phoneNumber')}
-            colSpan2={false}
-          />
+          <div className="col-span-2">
+            <PhoneInput
+              countryCodeProps={register('phoneCountryCode')}
+              phoneProps={register('phoneNumber')}
+              colSpan2={false}
+            />
+          </div>
           <Select label="Role" options={Object.entries(ROLE_LEVELS).map(([k,v])=>({value:v,label:k}))} {...register('userLevel')} />
           <Select label="Status" options={[{value:'true',label:'Active'},{value:'false',label:'Inactive'}]} {...register('isActive')} />
         </div>

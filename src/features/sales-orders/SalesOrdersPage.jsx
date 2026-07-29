@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Trash2, CheckCircle, XCircle, Eye } from 'lucide-react'
+import { Plus, Trash2, CheckCircle, XCircle, Eye, Pencil } from 'lucide-react'
 import { salesOrdersApi } from '@/api'
 import { PageHeader } from '@/components/layout'
 import {
@@ -70,25 +70,37 @@ export default function SalesOrdersPage() {
     { header: 'Customer', key: 'customerName' },
     { header: 'Total', key: 'totalAmount', render: row => formatCurrency(row.totalAmount) },
     { header: 'Status', key: 'status', render: row => <StatusBadge status={row.status} /> },
-    { header: 'Invoice', key: 'invoiceNumber', render: row => row.invoiceNumber
+    { header: 'Transferred to', key: 'transferToDocNo', render: row => row.transferToDocNo
       ? <button className="text-brand-600 dark:text-brand-400 hover:underline text-sm"
-          onClick={() => navigate(`/invoices/${row.invoiceId}`)}>{row.invoiceNumber}</button>
+          onClick={() => navigate(`/${row.transferToDocName === 'IV' ? 'invoices' : 'sales-orders'}/${row.transferToId}`)}>
+          {row.transferToDocName} — {row.transferToDocNo}
+        </button>
       : <span className="text-gray-400 text-sm">—</span>
     },
-    { header: '', key: 'actions', render: row => (
-      <div className="flex items-center gap-1 justify-end">
-        {isManager && row.status === 1 && (
+    { header: 'Approval', key: 'approval', width: '120px', render: row => (
+      <div className="flex items-center gap-1">
+        {isManager && row.status === 1 ? (
           <>
-            <Button size="xs" variant="success" leftIcon={<CheckCircle className="w-3 h-3" />}
-              loading={approveMutation.isPending} onClick={() => approveMutation.mutate(row.id)}>
-              Approve
-            </Button>
-            <Button size="xs" variant="danger" leftIcon={<XCircle className="w-3 h-3" />}
-              onClick={() => { setRejectTarget(row.id); setRejectReason('') }}>
-              Reject
-            </Button>
+            <button
+              onClick={() => approveMutation.mutate(row.id)}
+              className="p-1.5 rounded-lg text-gray-400 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-600 dark:hover:text-green-400"
+              title="Approve"
+            >
+              <CheckCircle className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => { setRejectTarget(row.id); setRejectReason('') }}
+              className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400"
+              title="Reject"
+            >
+              <XCircle className="w-3.5 h-3.5" />
+            </button>
           </>
-        )}
+        ) : <span className="text-gray-300 dark:text-gray-600 text-sm">—</span>}
+      </div>
+    )},
+    { header: '', key: 'actions', width: '100px', render: row => (
+      <div className="flex items-center gap-1 justify-end">
         <button
           onClick={() => navigate(`/sales-orders/${row.id}`)}
           className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300"
@@ -97,8 +109,22 @@ export default function SalesOrdersPage() {
           <Eye className="w-3.5 h-3.5" />
         </button>
         {(row.status === 0 || row.status === 1) && (
-          <Button size="xs" variant="ghost" leftIcon={<Trash2 className="w-3 h-3" />}
-            onClick={() => setDeleteId(row.id)} />
+          <button
+            onClick={() => navigate(`/sales-orders/${row.id}/edit`)}
+            className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300"
+            title="Edit"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {(row.status === 0 || row.status === 1) && (
+          <button
+            onClick={() => setDeleteId(row.id)}
+            className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600"
+            title="Delete"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
         )}
       </div>
     )},

@@ -405,7 +405,7 @@ const ns = z.string().nullish().transform(v => v ?? undefined)
 const lineSchema = z.object({
   itemId: z.coerce.number().optional().nullable(),
   locationId: z.coerce.number().min(1, 'Location is required').or(z.literal(0)).optional().nullable(),
-  itemName: z.string().min(1, 'Item name is required'),
+  itemName: z.string({ required_error: 'Item name is required' }).min(1, 'Item name is required'),
   description: ns,
   quantity: z.coerce.number().int().min(1, 'Quantity must be at least 1'),
   unitPrice: z.coerce.number().min(0.01, 'Unit price must be greater than 0'),
@@ -414,9 +414,9 @@ const lineSchema = z.object({
 
 const invoiceSchema = z.object({
   locationId: z.coerce.number().min(1, 'Location is required'),
-  invoiceDate: z.string().min(1, 'Invoice date is required'),
+  invoiceDate: z.string({ required_error: 'Invoice date is required' }).min(1, 'Invoice date is required'),
   dueDate: ns,
-  customerName: z.string().min(1, 'Customer name is required'),
+  customerName: z.string({ required_error: 'Customer name is required' }).min(1, 'Customer name is required'),
   customerEmail: z.string().email('Invalid email').optional().or(z.literal('')).or(z.null()).transform(v => v ?? ''),
   customerPhoneCountryCode: ns,
   customerPhone: ns,
@@ -1157,6 +1157,31 @@ export function InvoiceDetailPage() {
             )
           })()}
         </Card>
+
+        {/* Source Document card — shown only when invoice was transferred from another doc */}
+        {invoice.fromDocId && (
+          <Card>
+            <div className="flex items-center gap-3 p-4">
+              <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium">Transferred from</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mt-0.5">
+                  {invoice.fromDocName} — {invoice.fromDocNo}
+                </p>
+              </div>
+              {invoice.fromDocName === 'SO' && (
+                <button
+                  onClick={() => navigate(`/sales-orders/${invoice.fromDocId}`)}
+                  className="text-sm text-brand-600 hover:text-brand-700 dark:text-brand-400 font-medium flex items-center gap-1"
+                >
+                  View <ArrowLeft className="w-3.5 h-3.5 rotate-180" />
+                </button>
+              )}
+            </div>
+          </Card>
+        )}
 
         {/* Row 2 — Line items (full width, mirrors create page) */}
         <Card>

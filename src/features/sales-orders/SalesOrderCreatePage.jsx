@@ -15,17 +15,17 @@ import toast from 'react-hot-toast'
 
 const itemSchema = z.object({
   itemId: z.coerce.number().optional().nullable(),
-  itemName: z.string().min(1, 'Item name is required'),
+  itemName: z.string({ required_error: 'Item name is required' }).min(1, 'Item name is required'),
   description: z.string().optional(),
-  quantity: z.coerce.number().min(1, 'Quantity must be at least 1'),
-  unitPrice: z.coerce.number().min(0, 'Unit price must be 0 or more'),
-  discountPercent: z.coerce.number().min(0).max(100),
+  quantity: z.coerce.number({ required_error: 'Quantity is required' }).min(1, 'Quantity must be at least 1'),
+  unitPrice: z.coerce.number({ required_error: 'Unit price is required' }).min(0, 'Unit price must be 0 or more'),
+  discountPercent: z.coerce.number().min(0).max(100).default(0),
 })
 
 const schema = z.object({
-  orderDate: z.string().min(1, 'Order date is required'),
+  orderDate: z.string({ required_error: 'Order date is required' }).min(1, 'Order date is required'),
   deliveryDate: z.string().optional().transform(v => v || undefined),
-  customerName: z.string().min(1, 'Customer name is required'),
+  customerName: z.string({ required_error: 'Customer name is required' }).min(1, 'Customer name is required'),
   customerEmail: z.string().email('Invalid email').optional().or(z.literal('')),
   customerPhone: z.string().optional(),
   customerPhoneCountryCode: z.string().optional(),
@@ -350,13 +350,33 @@ export default function SalesOrderCreatePage() {
 
           <div className="flex gap-3 justify-end">
             <Button type="button" variant="outline" onClick={() => navigate(-1)}>Cancel</Button>
-            <Button
-              type="button"
-              loading={mutation.isPending}
-              onClick={handleSubmit(d => mutation.mutate(d), e => toastFormErrors(e, toast))}
-            >
-              {isEdit ? 'Update Sales Order' : 'Create Sales Order'}
-            </Button>
+            {isEdit ? (
+              <Button
+                type="button"
+                loading={mutation.isPending}
+                onClick={handleSubmit(d => mutation.mutate(d), e => toastFormErrors(e, toast))}
+              >
+                Update Sales Order
+              </Button>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  loading={mutation.isPending}
+                  onClick={handleSubmit(d => mutation.mutate({ ...d, status: 0 }), e => toastFormErrors(e, toast))}
+                >
+                  Save as Draft
+                </Button>
+                <Button
+                  type="button"
+                  loading={mutation.isPending}
+                  onClick={handleSubmit(d => mutation.mutate({ ...d, status: 1 }), e => toastFormErrors(e, toast))}
+                >
+                  Save as Pending
+                </Button>
+              </>
+            )}
           </div>
 
         </div>

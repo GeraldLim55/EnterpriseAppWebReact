@@ -7,13 +7,14 @@ import { salesOrdersApi, usersApi } from '@/api'
 import { PageHeader } from '@/components/layout'
 import { Button, Input, Card, CardHeader, Spinner } from '@/components/ui'
 import toast from 'react-hot-toast'
-import { ShoppingCart } from 'lucide-react'
+import { ShoppingCart, FileText } from 'lucide-react'
 
 const schema = z.object({
   prefix: z.string().min(1).max(20),
   runningNumber: z.coerce.number().int().min(1),
   paddingDigits: z.coerce.number().int().min(1).max(10),
   autoSendEmailOnApproval: z.boolean(),
+  autoCreateInvoice: z.boolean(),
   notifyManagerIds: z.array(z.number()),
   ccEmails: z.string().optional(),
   bccEmails: z.string().optional(),
@@ -39,7 +40,7 @@ export default function SalesOrderSettingsPage() {
     resolver: zodResolver(schema),
     defaultValues: {
       prefix: 'SO-', runningNumber: 1, paddingDigits: 5,
-      autoSendEmailOnApproval: false, notifyManagerIds: [], ccEmails: '', bccEmails: '',
+      autoSendEmailOnApproval: false, autoCreateInvoice: false, notifyManagerIds: [], ccEmails: '', bccEmails: '',
     },
   })
 
@@ -50,6 +51,7 @@ export default function SalesOrderSettingsPage() {
         runningNumber: data.runningNumber ?? 1,
         paddingDigits: data.paddingDigits ?? 5,
         autoSendEmailOnApproval: data.autoSendEmailOnApproval ?? false,
+        autoCreateInvoice: data.autoCreateInvoice ?? false,
         notifyManagerIds: data.notifyManagerIds ?? [],
         ccEmails: data.ccEmails ?? '',
         bccEmails: data.bccEmails ?? '',
@@ -102,6 +104,26 @@ export default function SalesOrderSettingsPage() {
               <span className="text-gray-500 dark:text-gray-400">Preview: </span>
               <span className="font-mono font-semibold text-brand-600 dark:text-brand-400">{preview}</span>
             </div>
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader title="Invoice" icon={<FileText className="w-4 h-4" />} />
+          <div className="p-5">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <Controller name="autoCreateInvoice" control={control} render={({ field }) => (
+                <input type="checkbox" checked={field.value} onChange={field.onChange}
+                  className="w-4 h-4 mt-0.5 rounded border-gray-300 dark:border-gray-600 text-brand-600" />
+              )} />
+              <div>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Auto-create invoice on approval
+                </span>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  When a sales order is approved, automatically generate a Pending invoice with the same line items and customer details.
+                </p>
+              </div>
+            </label>
           </div>
         </Card>
 

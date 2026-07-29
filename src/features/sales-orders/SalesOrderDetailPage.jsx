@@ -42,7 +42,7 @@ export default function SalesOrderDetailPage() {
     mutationFn: () => salesOrdersApi.approve(Number(id)),
     onSuccess: (res) => {
       const updated = res.data.data
-      toast.success(`Approved — Invoice ${updated?.invoiceNumber ?? ''} created`)
+      toast.success(updated?.transferToDocNo ? `Approved — ${updated.transferToDocName} ${updated.transferToDocNo} created` : 'Sales order approved')
       qc.invalidateQueries({ queryKey: ['sales-order', id] })
       qc.invalidateQueries({ queryKey: ['sales-orders'] })
     },
@@ -222,16 +222,16 @@ export default function SalesOrderDetailPage() {
             </div>
           </Card>
 
-          {so.invoiceId && (
+          {so.transferToDocNo && (
             <Card>
               <div className="p-5">
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Linked Invoice</h3>
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Transferred to</h3>
                 <button
                   className="flex items-center gap-2 text-brand-600 dark:text-brand-400 hover:underline text-sm font-medium"
-                  onClick={() => navigate(`/invoices/${so.invoiceId}`)}
+                  onClick={() => navigate(`/${so.transferToDocName === 'IV' ? 'invoices' : 'sales-orders'}/${so.transferToId}`)}
                 >
                   <FileText className="w-4 h-4" />
-                  {so.invoiceNumber}
+                  {so.transferToDocName} — {so.transferToDocNo}
                 </button>
               </div>
             </Card>
