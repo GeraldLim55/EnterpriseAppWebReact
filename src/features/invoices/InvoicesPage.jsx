@@ -1031,6 +1031,7 @@ export function InvoiceDetailPage() {
   const [showStatusModal, setShowStatusModal] = useState(false)
   const [showRejectModal, setShowRejectModal] = useState(false)
   const [showEmailModal, setShowEmailModal] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [activeTab, setActiveTab] = useState('Invoice')
 
   const { data: invoice, isLoading } = useQuery({
@@ -1067,6 +1068,16 @@ export function InvoiceDetailPage() {
     mutationFn: (reason) => invoicesApi.reject(Number(id), reason),
     onSuccess: () => { toast.success('Invoice rejected'); qc.invalidateQueries({ queryKey: ['invoice', id] }); setShowRejectModal(false) },
     onError: (err) => toast.error(err?.response?.data?.message ?? 'Failed to reject'),
+  })
+
+  const deleteDetailMutation = useMutation({
+    mutationFn: () => invoicesApi.delete(Number(id)),
+    onSuccess: () => {
+      toast.success('Invoice deleted')
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      navigate('/invoices')
+    },
+    onError: (err) => toast.error(err?.response?.data?.message ?? 'Failed to delete'),
   })
 
   const handleDuplicate = () => {
@@ -1120,6 +1131,12 @@ export function InvoiceDetailPage() {
                 <Button size="sm" variant="outline" onClick={() => setShowStatusModal(true)}>Update status</Button>
                 <Button size="sm" variant="outline" onClick={() => navigate(`/invoices/${id}/edit`)}>Edit</Button>
               </>
+            )}
+            {invoice.status !== 2 && (
+              <Button size="sm" variant="danger" leftIcon={<Trash2 className="w-3.5 h-3.5" />}
+                onClick={() => setShowDeleteConfirm(true)}>
+                Delete
+              </Button>
             )}
             <Button size="sm" variant="ghost" leftIcon={<ArrowLeft className="w-3.5 h-3.5" />} onClick={() => navigate(-1)}>
               Back
@@ -1339,6 +1356,17 @@ export function InvoiceDetailPage() {
         loading={sendEmailMutation.isPending}
         customerEmail={invoice?.customerEmail}
         invoiceId={Number(id)}
+      />
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={() => deleteDetailMutation.mutate()}
+        title="Delete invoice"
+        message="Are you sure you want to delete this invoice? This cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        loading={deleteDetailMutation.isPending}
       />
     </div>
   )
