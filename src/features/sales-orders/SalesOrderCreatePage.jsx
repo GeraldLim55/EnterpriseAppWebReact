@@ -114,6 +114,7 @@ export default function SalesOrderCreatePage() {
       const so = res.data.data
       toast.success(isEdit ? 'Sales order updated' : `Sales order ${so?.orderNumber} created`)
       qc.invalidateQueries({ queryKey: ['sales-orders'] })
+      qc.invalidateQueries({ queryKey: ['sales-order', String(so?.id ?? id)] })
       navigate(`/sales-orders/${so?.id ?? id}`)
     },
     onError: (err) => toast.error(err?.response?.data?.message ?? 'Failed to save sales order'),
