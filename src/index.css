@@ -16,8 +16,16 @@
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
 
+  .dark body {
+    @apply bg-gray-950 text-gray-100;
+  }
+
   :focus-visible {
     @apply outline-none ring-2 ring-brand-500 ring-offset-2;
+  }
+
+  .dark :focus-visible {
+    @apply ring-offset-gray-900;
   }
 
   /* Custom scrollbar */
@@ -25,6 +33,9 @@
   ::-webkit-scrollbar-track { @apply bg-transparent; }
   ::-webkit-scrollbar-thumb { @apply bg-gray-300 rounded-full; }
   ::-webkit-scrollbar-thumb:hover { @apply bg-gray-400; }
+
+  .dark ::-webkit-scrollbar-thumb { @apply bg-gray-600; }
+  .dark ::-webkit-scrollbar-thumb:hover { @apply bg-gray-500; }
 }
 
 @layer components {
@@ -32,20 +43,22 @@
   .nav-link {
     @apply flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg
            text-gray-600 hover:text-gray-900 hover:bg-gray-100
+           dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-gray-800
            transition-colors duration-150 cursor-pointer;
   }
   .nav-link.active {
-    @apply text-brand-700 bg-brand-50 hover:bg-brand-50 hover:text-brand-700;
+    @apply text-brand-700 bg-brand-50 hover:bg-brand-50 hover:text-brand-700
+           dark:text-brand-400 dark:bg-brand-950/50 dark:hover:bg-brand-950/50 dark:hover:text-brand-400;
   }
 
   /* Table row hover */
   .table-row-hover {
-    @apply hover:bg-gray-50 transition-colors duration-100;
+    @apply hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors duration-100;
   }
 
   /* Card */
   .card {
-    @apply bg-white rounded-xl border border-gray-200 shadow-card;
+    @apply bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-card;
   }
 
   /* Badge variants */

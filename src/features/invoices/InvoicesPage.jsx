@@ -4,7 +4,7 @@ import { useNavigate, useParams, useLocation, Link } from 'react-router-dom'
 import { useForm, useFieldArray, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Download, Trash2, ArrowLeft, FileText, CheckCircle, XCircle, Copy, Mail, X } from 'lucide-react'
+import { Plus, Download, Trash2, ArrowLeft, FileText, CheckCircle, XCircle, Copy, Mail, X, Eye } from 'lucide-react'
 import { invoicesApi, itemsApi, locationsApi, companyApi, paymentTermsApi } from '@/api'
 import { PageHeader } from '@/components/layout'
 import {
@@ -17,9 +17,9 @@ import { useAuth } from '@/context/AuthContext'
 import toast from 'react-hot-toast'
 
 // ─── Status helpers ───────────────────────────────────────────────────────
-const STATUS_LABELS = { 0: 'Draft', 1: 'Pending', 2: 'Paid', 3: 'Cancelled', 4: 'Overdue', 5: 'Approved', 6: 'Rejected' }
+const STATUS_LABELS = { 0: 'Draft', 1: 'Pending', 2: 'Paid', 3: 'Cancelled', 4: 'Overdue' }
 const STATUS_VARIANTS = {
-  0: 'default', 1: 'info', 2: 'success', 3: 'danger', 4: 'warning', 5: 'success', 6: 'danger',
+  0: 'default', 1: 'info', 2: 'success', 3: 'danger', 4: 'warning',
 }
 
 function StatusBadge({ status }) {
@@ -56,16 +56,6 @@ export default function InvoicesPage() {
       const msg = err?.response?.data?.message ?? 'Failed to delete'
       toast.error(msg)
     },
-  })
-
-  const approveMutation = useMutation({
-    mutationFn: ({ id }) => invoicesApi.approve(id),
-    onSuccess: (_, { id, customerEmail }) => {
-      toast.success('Invoice approved')
-      qc.invalidateQueries({ queryKey: ['invoices'] })
-      setEmailTarget({ id, customerEmail })
-    },
-    onError: (err) => toast.error(err?.response?.data?.message ?? 'Failed to approve'),
   })
 
   const rejectMutation = useMutation({
@@ -124,6 +114,13 @@ export default function InvoicesPage() {
       render: (row) => (
         <div className="flex items-center justify-end gap-1">
           <button
+            onClick={() => navigate(`/invoices/${row.id}`)}
+            className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300"
+            title="View"
+          >
+            <Eye className="w-3.5 h-3.5" />
+          </button>
+          <button
             onClick={() => navigate(`/invoices/${row.id}/edit`)}
             className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700"
             title="Edit"
@@ -132,26 +129,7 @@ export default function InvoicesPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 11l6.364-6.364a2 2 0 012.828 2.828L11.828 13.828a2 2 0 01-1.414.586H9v-2a2 2 0 01.586-1.414z" />
             </svg>
           </button>
-          {isManager && row.status === 1 && (
-            <>
-              <button
-                onClick={() => approveMutation.mutate({ id: row.id, customerEmail: row.customerEmail })}
-                disabled={approveMutation.isPending}
-                className="p-1.5 rounded-lg text-gray-400 hover:bg-green-50 hover:text-green-600 disabled:opacity-30"
-                title="Approve"
-              >
-                <CheckCircle className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => setRejectTarget({ id: row.id })}
-                className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600"
-                title="Reject"
-              >
-                <XCircle className="w-3.5 h-3.5" />
-              </button>
-            </>
-          )}
-          {row.status === 5 && (
+          {row.status === 2 && (
             <button
               onClick={() => {
                 if (!row.customerEmail) {
@@ -161,8 +139,8 @@ export default function InvoicesPage() {
                 setEmailTarget({ id: row.id, customerEmail: row.customerEmail })
               }}
               disabled={sendEmailMutation.isPending}
-              className="p-1.5 rounded-lg text-gray-400 hover:bg-blue-50 hover:text-blue-600 disabled:opacity-30"
-              title="Resend email"
+              className="p-1.5 rounded-lg text-gray-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 disabled:opacity-30"
+              title="Send email"
             >
               <Mail className="w-3.5 h-3.5" />
             </button>
@@ -206,7 +184,7 @@ export default function InvoicesPage() {
               { value: '', label: 'All status' },
               { value: '0', label: 'Draft' }, { value: '1', label: 'Pending' },
               { value: '2', label: 'Paid' }, { value: '3', label: 'Cancelled' },
-              { value: '4', label: 'Overdue' }, { value: '5', label: 'Approved' }, { value: '6', label: 'Rejected' },
+              { value: '4', label: 'Overdue' },
             ]}
             value={filters.status ?? ''}
             onChange={e => setFilters(p => ({ ...p, status: e.target.value !== '' ? Number(e.target.value) : undefined, page: 1 }))}
@@ -297,8 +275,8 @@ function InvoicePreviewModal({ open, onClose, invoiceId }) {
   return (
     <div className="fixed inset-0 z-[200] flex flex-col bg-gray-900/80 backdrop-blur-sm">
       {/* toolbar */}
-      <div className="flex items-center justify-between px-4 py-2 bg-white border-b shrink-0">
-        <span className="font-semibold text-gray-800 text-sm">Invoice Preview</span>
+      <div className="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shrink-0">
+        <span className="font-semibold text-gray-800 dark:text-gray-200 text-sm">Invoice Preview</span>
         <button onClick={onClose} className="text-gray-500 hover:text-gray-800 p-1 rounded">
           <X className="w-5 h-5" />
         </button>
@@ -376,14 +354,14 @@ function SendEmailModal({ open, onClose, onSend, loading, customerEmail, invoice
         }
       >
         {hasEmail ? (
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 dark:text-gray-300">
             Send the approved invoice with a PDF attachment to{' '}
-            <span className="font-semibold text-gray-900">{customerEmail}</span>?
+            <span className="font-semibold text-gray-900 dark:text-gray-100">{customerEmail}</span>?
           </p>
         ) : (
           <div className="flex flex-col gap-2">
-            <p className="text-sm text-gray-600">Would you like to email this invoice to the customer?</p>
-            <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            <p className="text-sm text-gray-600 dark:text-gray-300">Would you like to email this invoice to the customer?</p>
+            <p className="text-sm text-amber-600 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg px-3 py-2">
               No customer email on file — cannot send. Edit the invoice to add one.
             </p>
           </div>
@@ -426,11 +404,11 @@ const ns = z.string().nullish().transform(v => v ?? undefined)
 
 const lineSchema = z.object({
   itemId: z.coerce.number().optional().nullable(),
-  locationId: z.coerce.number().min(1, 'Location required').or(z.literal(0)).optional().nullable(),
-  itemName: z.string().min(1, 'Required'),
+  locationId: z.coerce.number().min(1, 'Location is required').or(z.literal(0)).optional().nullable(),
+  itemName: z.string().min(1, 'Item name is required'),
   description: ns,
-  quantity: z.coerce.number().int().min(1, 'Min 1'),
-  unitPrice: z.coerce.number().min(0.01, 'Must be > 0'),
+  quantity: z.coerce.number().int().min(1, 'Quantity must be at least 1'),
+  unitPrice: z.coerce.number().min(0.01, 'Unit price must be greater than 0'),
   discountPercent: z.coerce.number().min(0).max(100).default(0),
 })
 
@@ -594,12 +572,7 @@ export function InvoiceCreatePage() {
       const inv = res.data.data
       toast.success(`Invoice ${inv?.invoiceNumber} created`)
       qc.invalidateQueries({ queryKey: ['invoices'] })
-      if (variables.status === 5) {
-        setCreatedInvoice(inv)
-        setShowCreateEmailModal(true)
-      } else {
-        navigate('/invoices')
-      }
+      navigate('/invoices')
     },
     onError: () => toast.error('Failed to create invoice'),
   })
@@ -665,7 +638,7 @@ export function InvoiceCreatePage() {
                 Payment: false,
               }
               return (
-                <div className="flex gap-1 border-b border-gray-200 mb-4">
+                <div className="flex gap-1 border-b border-gray-200 dark:border-gray-700 mb-4">
                   {['Invoice', 'Customer', 'Payment'].map(tab => (
                     <button
                       key={tab}
@@ -674,7 +647,7 @@ export function InvoiceCreatePage() {
                       className={`relative px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
                         activeTab === tab
                           ? 'text-brand-600 border-b-2 border-brand-600 -mb-px'
-                          : 'text-gray-500 hover:text-gray-700'
+                          : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                       }`}
                     >
                       {tab}
@@ -714,12 +687,12 @@ export function InvoiceCreatePage() {
                   {...register('dueDate')}
                 />
                 <div>
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">
                     Location <span className="text-red-500">*</span>
                   </label>
                   <select
-                    className={`w-full h-9 rounded-lg border bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 ${
-                      errors.locationId ? 'border-red-400 ring-1 ring-red-400' : 'border-gray-300'
+                    className={`w-full h-9 rounded-lg border bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 ${
+                      errors.locationId ? 'border-red-400 ring-1 ring-red-400' : 'border-gray-300 dark:border-gray-700'
                     }`}
                     onChange={handleMasterLocationChange}
                     value={watch('locationId') ?? ''}
@@ -743,9 +716,9 @@ export function InvoiceCreatePage() {
             {activeTab === 'Payment' && (
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">Payment terms</label>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Payment terms</label>
                   <select
-                    className="w-full h-9 rounded-lg border border-gray-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    className="w-full h-9 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                     value={watch('paymentTerms') ?? ''}
                     onChange={e => {
                       const name = e.target.value
@@ -794,7 +767,7 @@ export function InvoiceCreatePage() {
           {/* Row 2 — Line items */}
           <Card>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold text-gray-900">Line items</h2>
+              <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Line items</h2>
               <Button
                 type="button" size="sm" variant="outline"
                 leftIcon={<Plus className="w-3.5 h-3.5" />}
@@ -825,11 +798,11 @@ export function InvoiceCreatePage() {
                     const d = watchedDetails?.[index]
                     const lineTotal = d ? Number(d.quantity) * Number(d.unitPrice) * (1 - Number(d.discountPercent) / 100) : 0
                     return (
-                      <div key={field.id} className="grid grid-cols-12 gap-2 items-center px-3 py-2 bg-gray-50 rounded-lg">
+                      <div key={field.id} className="grid grid-cols-12 gap-2 items-center px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
                         {/* Item picker */}
                         <div className="col-span-12 sm:col-span-2">
                           <select
-                            className="w-full h-9 rounded-lg border border-gray-300 bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                            className="w-full h-9 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                             onChange={e => handleItemSelect(index, e.target.value)}
                             defaultValue=""
                           >
@@ -850,7 +823,7 @@ export function InvoiceCreatePage() {
                         {/* Line location */}
                         <div className="col-span-12 sm:col-span-2">
                           <select
-                            className="w-full h-9 rounded-lg border border-gray-300 bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                            className="w-full h-9 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                             {...register(`details.${index}.locationId`)}
                           >
                             {locationOptions.map(o => (
@@ -875,7 +848,7 @@ export function InvoiceCreatePage() {
                           <Input type="number" step="0.1" placeholder="0" className="text-right" {...register(`details.${index}.discountPercent`)} />
                         </div>
                         {/* Line total — read-only */}
-                        <div className="col-span-4 sm:col-span-1 text-right text-sm font-semibold text-gray-800 pr-1">
+                        <div className="col-span-4 sm:col-span-1 text-right text-sm font-semibold text-gray-800 dark:text-gray-200 pr-1">
                           {formatCurrency(lineTotal)}
                         </div>
                         {/* Remove */}
@@ -906,7 +879,7 @@ export function InvoiceCreatePage() {
             <div className="w-80">
               <div className="flex flex-col gap-1.5 text-sm">
                 <div className="flex justify-between text-gray-500">
-                  <span>Gross</span><span className="font-medium text-gray-800">{formatCurrency(grossTotal)}</span>
+                  <span>Gross</span><span className="font-medium text-gray-800 dark:text-gray-200">{formatCurrency(grossTotal)}</span>
                 </div>
                 {lineDiscountTotal > 0 && (
                   <div className="flex justify-between text-gray-500">
@@ -914,17 +887,17 @@ export function InvoiceCreatePage() {
                   </div>
                 )}
                 <div className="flex justify-between text-gray-500">
-                  <span>Subtotal</span><span className="font-medium text-gray-800">{formatCurrency(subTotal)}</span>
+                  <span>Subtotal</span><span className="font-medium text-gray-800 dark:text-gray-200">{formatCurrency(subTotal)}</span>
                 </div>
                 <div className="flex justify-between text-gray-500">
-                  <span>Tax ({Number(watchedTax) || 0}%)</span><span className="font-medium text-gray-800">{formatCurrency(taxAmount)}</span>
+                  <span>Tax ({Number(watchedTax) || 0}%)</span><span className="font-medium text-gray-800 dark:text-gray-200">{formatCurrency(taxAmount)}</span>
                 </div>
                 {masterDiscount > 0 && (
                   <div className="flex justify-between text-gray-500">
                     <span>Discount</span><span className="font-medium text-red-500">−{formatCurrency(masterDiscount)}</span>
                   </div>
                 )}
-                <div className="flex justify-between pt-2 border-t border-gray-200 text-base font-bold text-gray-900">
+                <div className="flex justify-between pt-2 border-t border-gray-200 dark:border-gray-700 text-base font-bold text-gray-900 dark:text-gray-100">
                   <span>Total</span><span>{formatCurrency(total)}</span>
                 </div>
               </div>
@@ -948,16 +921,6 @@ export function InvoiceCreatePage() {
             >
               Create invoice
             </Button>
-            {hasMinLevel(60) && (
-              <Button
-                type="button"
-                variant="success"
-                loading={isSubmitting}
-                onClick={handleSubmit(d => mutation.mutate({ ...d, status: 5 }), e => toastFormErrors(e, toast))}
-              >
-                Save &amp; confirm
-              </Button>
-            )}
           </div>
 
         </div>
@@ -1024,16 +987,6 @@ export function InvoiceDetailPage() {
     onError: () => toast.error('Failed to update status'),
   })
 
-  const approveMutation = useMutation({
-    mutationFn: () => invoicesApi.approve(Number(id)),
-    onSuccess: () => {
-      toast.success('Invoice approved')
-      qc.invalidateQueries({ queryKey: ['invoice', id] })
-      setShowEmailModal(true)
-    },
-    onError: (err) => toast.error(err?.response?.data?.message ?? 'Failed to approve'),
-  })
-
   const sendEmailMutation = useMutation({
     mutationFn: () => invoicesApi.sendEmail(Number(id)),
     onSuccess: (res) => { toast.success(res.data?.message ?? 'Email sent'); setShowEmailModal(false) },
@@ -1088,18 +1041,6 @@ export function InvoiceDetailPage() {
         action={
           <div className="flex items-center gap-2">
             <StatusBadge status={invoice.status} />
-            {isManager && invoice.status === 1 && (
-              <>
-                <Button size="sm" variant="success" leftIcon={<CheckCircle className="w-3.5 h-3.5" />}
-                  loading={approveMutation.isPending} onClick={() => approveMutation.mutate()}>
-                  Approve
-                </Button>
-                <Button size="sm" variant="danger" leftIcon={<XCircle className="w-3.5 h-3.5" />}
-                  onClick={() => setShowRejectModal(true)}>
-                  Reject
-                </Button>
-              </>
-            )}
             <Button size="sm" variant="outline" leftIcon={<Copy className="w-3.5 h-3.5" />}
               onClick={handleDuplicate}>
               Duplicate
@@ -1124,7 +1065,7 @@ export function InvoiceDetailPage() {
             const tabs = ['Invoice', 'Customer', 'Payment']
             return (
               <>
-                <div className="flex gap-1 border-b border-gray-200 mb-4">
+                <div className="flex gap-1 border-b border-gray-200 dark:border-gray-700 mb-4">
                   {tabs.map(tab => (
                     <button
                       key={tab}
@@ -1133,7 +1074,7 @@ export function InvoiceDetailPage() {
                       className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
                         activeTab === tab
                           ? 'text-brand-600 border-b-2 border-brand-600 -mb-px'
-                          : 'text-gray-500 hover:text-gray-700'
+                          : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                       }`}
                     >
                       {tab}
@@ -1153,7 +1094,7 @@ export function InvoiceDetailPage() {
                     ].map(([label, value]) => (
                       <div key={label} className="flex justify-between gap-4">
                         <dt className="text-gray-500">{label}</dt>
-                        <dd className="font-medium text-gray-900 text-right">{value}</dd>
+                        <dd className="font-medium text-gray-900 dark:text-gray-100 text-right">{value}</dd>
                       </div>
                     ))}
                     {invoice.rejectionReason && (
@@ -1181,7 +1122,7 @@ export function InvoiceDetailPage() {
                     ].map(([label, value]) => (
                       <div key={label} className="flex justify-between gap-4">
                         <dt className="text-gray-500 shrink-0">{label}</dt>
-                        <dd className="font-medium text-gray-900 text-right">{value}</dd>
+                        <dd className="font-medium text-gray-900 dark:text-gray-100 text-right">{value}</dd>
                       </div>
                     ))}
                   </dl>
@@ -1192,13 +1133,13 @@ export function InvoiceDetailPage() {
                     {invoice.paymentTerms && (
                       <div className="flex justify-between gap-4">
                         <dt className="text-gray-500 shrink-0">Terms</dt>
-                        <dd className="font-medium text-gray-900 text-right">{invoice.paymentTerms}</dd>
+                        <dd className="font-medium text-gray-900 dark:text-gray-100 text-right">{invoice.paymentTerms}</dd>
                       </div>
                     )}
                     {invoice.paymentReference && (
                       <div className="flex justify-between gap-4">
                         <dt className="text-gray-500 shrink-0">Reference</dt>
-                        <dd className="font-medium text-gray-900 text-right">{invoice.paymentReference}</dd>
+                        <dd className="font-medium text-gray-900 dark:text-gray-100 text-right">{invoice.paymentReference}</dd>
                       </div>
                     )}
                     {invoice.paymentNotes && (
@@ -1224,7 +1165,7 @@ export function InvoiceDetailPage() {
             columns={[
               { key: 'itemName', header: 'Item',
                 render: (r) => (
-                  <div><p className="text-sm font-medium text-gray-900">{r.itemName}</p>
+                  <div><p className="text-sm font-medium text-gray-900 dark:text-gray-100">{r.itemName}</p>
                   {r.description && <p className="text-xs text-gray-400">{r.description}</p>}</div>
                 )
               },
@@ -1251,7 +1192,7 @@ export function InvoiceDetailPage() {
             {invoice.discountAmount > 0 && (
               <div className="flex gap-16 text-red-600"><span>Discount</span><span>−{formatCurrency(invoice.discountAmount)}</span></div>
             )}
-            <div className="flex gap-16 font-semibold text-base text-gray-900 border-t border-gray-200 pt-1 mt-1">
+            <div className="flex gap-16 font-semibold text-base text-gray-900 dark:text-gray-100 border-t border-gray-200 dark:border-gray-700 pt-1 mt-1">
               <span>Total</span><span>{formatCurrency(invoice.totalAmount)}</span>
             </div>
           </div>
@@ -1276,7 +1217,7 @@ export function InvoiceDetailPage() {
                   key={s.value}
                   onClick={() => updateStatus.mutate(s.value)}
                   disabled={updateStatus.isPending}
-                  className="flex items-center gap-3 w-full px-4 py-3 rounded-lg border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition-colors text-sm font-medium text-gray-700 text-left disabled:opacity-60"
+                  className="flex items-center gap-3 w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-brand-300 hover:bg-brand-50 dark:hover:bg-brand-950/30 transition-colors text-sm font-medium text-gray-700 dark:text-gray-300 text-left disabled:opacity-60"
                 >
                   {isThisLoading ? <Spinner size="sm" /> : <StatusBadge status={s.value} />}
                   Mark as {s.label}
@@ -1464,8 +1405,6 @@ export function InvoiceEditPage() {
   if (loadingInvoice) return <div className="flex justify-center py-16"><Spinner /></div>
   if (!invoice) return null
 
-  const isApproved = invoice.status === 5
-
   return (
     <div>
       <PageHeader
@@ -1486,7 +1425,7 @@ export function InvoiceEditPage() {
                 Payment: false,
               }
               return (
-                <div className="flex gap-1 border-b border-gray-200 mb-4">
+                <div className="flex gap-1 border-b border-gray-200 dark:border-gray-700 mb-4">
                   {['Invoice', 'Customer', 'Payment'].map(tab => (
                     <button
                       key={tab}
@@ -1495,7 +1434,7 @@ export function InvoiceEditPage() {
                       className={`relative px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
                         activeTab === tab
                           ? 'text-brand-600 border-b-2 border-brand-600 -mb-px'
-                          : 'text-gray-500 hover:text-gray-700'
+                          : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                       }`}
                     >
                       {tab}
@@ -1528,12 +1467,12 @@ export function InvoiceEditPage() {
                   {...register('dueDate')}
                 />
                 <div>
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">
                     Location <span className="text-red-500">*</span>
                   </label>
                   <select
-                    className={`w-full h-9 rounded-lg border bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 ${
-                      errors.locationId ? 'border-red-400 ring-1 ring-red-400' : 'border-gray-300'
+                    className={`w-full h-9 rounded-lg border bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 ${
+                      errors.locationId ? 'border-red-400 ring-1 ring-red-400' : 'border-gray-300 dark:border-gray-700'
                     }`}
                     onChange={handleMasterLocationChange}
                     value={watch('locationId') ?? ''}
@@ -1557,9 +1496,9 @@ export function InvoiceEditPage() {
             {activeTab === 'Payment' && (
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">Payment terms</label>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Payment terms</label>
                   <select
-                    className="w-full h-9 rounded-lg border border-gray-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    className="w-full h-9 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                     value={watch('paymentTerms') ?? ''}
                     onChange={e => {
                       const name = e.target.value
@@ -1608,7 +1547,7 @@ export function InvoiceEditPage() {
           {/* Row 2 — Line items */}
           <Card>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold text-gray-900">Line items</h2>
+              <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Line items</h2>
               <Button
                 type="button" size="sm" variant="outline"
                 leftIcon={<Plus className="w-3.5 h-3.5" />}
@@ -1638,10 +1577,10 @@ export function InvoiceEditPage() {
                     const d = watchedDetails?.[index]
                     const lineTotal = d ? Number(d.quantity) * Number(d.unitPrice) * (1 - Number(d.discountPercent) / 100) : 0
                     return (
-                      <div key={field.id} className="grid grid-cols-12 gap-2 items-center px-3 py-2 bg-gray-50 rounded-lg">
+                      <div key={field.id} className="grid grid-cols-12 gap-2 items-center px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
                         <div className="col-span-12 sm:col-span-2">
                           <select
-                            className="w-full h-9 rounded-lg border border-gray-300 bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                            className="w-full h-9 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                             onChange={e => handleItemSelect(index, e.target.value)}
                             defaultValue=""
                           >
@@ -1660,7 +1599,7 @@ export function InvoiceEditPage() {
                         </div>
                         <div className="col-span-12 sm:col-span-2">
                           <select
-                            className="w-full h-9 rounded-lg border border-gray-300 bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                            className="w-full h-9 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                             {...register(`details.${index}.locationId`)}
                           >
                             {locationOptions.map(o => (
@@ -1681,7 +1620,7 @@ export function InvoiceEditPage() {
                         <div className="col-span-3 sm:col-span-1">
                           <Input type="number" step="0.1" placeholder="0" className="text-right" {...register(`details.${index}.discountPercent`)} />
                         </div>
-                        <div className="col-span-4 sm:col-span-1 text-right text-sm font-semibold text-gray-800 pr-1">
+                        <div className="col-span-4 sm:col-span-1 text-right text-sm font-semibold text-gray-800 dark:text-gray-200 pr-1">
                           {formatCurrency(lineTotal)}
                         </div>
                         <div className="col-span-1 flex justify-end">
@@ -1710,7 +1649,7 @@ export function InvoiceEditPage() {
               <div className="w-80">
                 <div className="flex flex-col gap-1.5 text-sm">
                   <div className="flex justify-between text-gray-500">
-                    <span>Gross</span><span className="font-medium text-gray-800">{formatCurrency(grossTotal)}</span>
+                    <span>Gross</span><span className="font-medium text-gray-800 dark:text-gray-200">{formatCurrency(grossTotal)}</span>
                   </div>
                   {lineDiscountTotal > 0 && (
                     <div className="flex justify-between text-gray-500">
@@ -1718,17 +1657,17 @@ export function InvoiceEditPage() {
                     </div>
                   )}
                   <div className="flex justify-between text-gray-500">
-                    <span>Subtotal</span><span className="font-medium text-gray-800">{formatCurrency(subTotal)}</span>
+                    <span>Subtotal</span><span className="font-medium text-gray-800 dark:text-gray-200">{formatCurrency(subTotal)}</span>
                   </div>
                   <div className="flex justify-between text-gray-500">
-                    <span>Tax ({Number(watchedTax) || 0}%)</span><span className="font-medium text-gray-800">{formatCurrency(taxAmount)}</span>
+                    <span>Tax ({Number(watchedTax) || 0}%)</span><span className="font-medium text-gray-800 dark:text-gray-200">{formatCurrency(taxAmount)}</span>
                   </div>
                   {masterDiscount > 0 && (
                     <div className="flex justify-between text-gray-500">
                       <span>Discount</span><span className="font-medium text-red-500">−{formatCurrency(masterDiscount)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between pt-2 border-t border-gray-200 text-base font-bold text-gray-900">
+                  <div className="flex justify-between pt-2 border-t border-gray-200 dark:border-gray-700 text-base font-bold text-gray-900 dark:text-gray-100">
                     <span>Total</span><span>{formatCurrency(total)}</span>
                   </div>
                 </div>
@@ -1745,16 +1684,6 @@ export function InvoiceEditPage() {
             >
               Save invoice
             </Button>
-            {isApproved && (
-              <Button
-                type="button"
-                variant="success"
-                loading={saveMutation.isPending}
-                onClick={handleSubmit(d => handleSave(d, true), e => toastFormErrors(e, toast))}
-              >
-                Save &amp; resend email
-              </Button>
-            )}
           </div>
 
         </div>

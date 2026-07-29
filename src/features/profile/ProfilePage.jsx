@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Trash2, Download, Eye, Camera } from 'lucide-react'
+import { Plus, Trash2, Download, Eye, Camera, Globe, Link2, Check, Lock } from 'lucide-react'
 import { profileApi, resumeApi } from '@/api'
 import { PageHeader } from '@/components/layout'
 import { Button, Input, Textarea, Select, Card, CardHeader, Spinner, Empty, Modal } from '@/components/ui'
@@ -13,7 +13,7 @@ import { getInitials, downloadBlob, toastFormErrors } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
 import toast from 'react-hot-toast'
 
-const TABS = ['Overview', 'Experience', 'Education', 'Skills', 'Resume']
+const TABS = ['Overview', 'Experience', 'Education', 'Skills', 'Resume', 'Portfolio']
 const TEMPLATE_LABELS = { 1: 'Classic', 2: 'Modern', 3: 'Creative' }
 
 export default function ProfilePage() {
@@ -100,17 +100,17 @@ export default function ProfilePage() {
               }} />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               {profile?.firstName ? `${profile.firstName} ${profile.lastName ?? ''}`.trim() : profile?.username}
             </h2>
-            {profile?.headline && <p className="text-sm text-gray-500 mt-0.5">{profile.headline}</p>}
-            <p className="text-xs text-gray-400 mt-1">{session?.roleName} · {profile?.email}</p>
+            {profile?.headline && <p className="text-sm text-gray-500 dark:text-gray-300 mt-0.5">{profile.headline}</p>}
+            <p className="text-xs text-gray-400 dark:text-gray-400 mt-1">{session?.roleName} · {profile?.email}</p>
           </div>
         </div>
       </Card>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-200 mb-6">
+      <div className="flex gap-1 border-b border-gray-200 dark:border-gray-700 mb-6">
         {TABS.map(tab => (
           <button
             key={tab}
@@ -118,7 +118,7 @@ export default function ProfilePage() {
             className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
               activeTab === tab
                 ? 'text-brand-700 border-brand-600'
-                : 'text-gray-500 border-transparent hover:text-gray-700'
+                : 'text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-300'
             }`}
           >
             {tab}
@@ -130,6 +130,7 @@ export default function ProfilePage() {
       {activeTab === 'Experience' && <ExperienceForm profile={profile} onSuccess={invalidate} />}
       {activeTab === 'Education'  && <EducationForm profile={profile} onSuccess={invalidate} />}
       {activeTab === 'Skills'     && <SkillsLanguagesForm profile={profile} onSuccess={invalidate} />}
+      {activeTab === 'Portfolio'  && <PortfolioShareForm profile={profile} onSuccess={invalidate} />}
       {activeTab === 'Resume'     && (
         <div className="flex flex-col gap-5">
           <Card>
@@ -140,7 +141,7 @@ export default function ProfilePage() {
                   key={t}
                   onClick={() => setSelectedTemplate(t)}
                   className={`rounded-xl border-2 p-4 text-center transition-all ${
-                    selectedTemplate === t ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'
+                    selectedTemplate === t ? 'border-brand-500 bg-brand-50 dark:bg-brand-950/40' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                   }`}
                 >
                   <div className={`w-full h-20 rounded-lg mb-3 ${
@@ -148,7 +149,7 @@ export default function ProfilePage() {
                     t === 2 ? 'bg-gradient-to-r from-blue-600 to-blue-700' :
                     'bg-gradient-to-br from-purple-500 to-indigo-600'
                   }`} />
-                  <p className="text-sm font-semibold text-gray-900">{TEMPLATE_LABELS[t]}</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{TEMPLATE_LABELS[t]}</p>
                 </button>
               ))}
             </div>
@@ -431,3 +432,136 @@ function SkillsLanguagesForm({ profile, onSuccess }) {
     </form>
   )
 }
+
+// ─── Portfolio Share Form ─────────────────────────────────────────────────
+function PortfolioShareForm({ profile, onSuccess }) {
+  const [isPublic, setIsPublic] = useState(profile?.portfolioPublic ?? false)
+  const [loading, setLoading] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const shareUrl = profile?.portfolioToken && profile?.portfolioPublic
+    ? `${window.location.origin}/p/${profile.portfolioToken}`
+    : null
+
+  const handleToggle = async (value) => {
+    setIsPublic(value)
+    setLoading(true)
+    try {
+      await profileApi.updateShare({ isPublic: value })
+      toast.success(value ? 'Portfolio is now public' : 'Portfolio is now private')
+      onSuccess()
+    } catch {
+      toast.error('Failed to update sharing settings')
+      setIsPublic(!value)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCopy = () => {
+    if (!shareUrl) return
+    navigator.clipboard.writeText(shareUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <Card>
+        <CardHeader
+          title="Portfolio sharing"
+          description="Share your portfolio as a public resume website. Anyone with the link can view it."
+        />
+        <div className="space-y-4 max-w-lg">
+          {/* Toggle options */}
+          <div className="flex flex-col gap-3">
+            <button
+              type="button"
+              onClick={() => !loading && handleToggle(false)}
+              className={`flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all ${
+                !isPublic
+                  ? 'border-brand-500 bg-brand-50 dark:bg-brand-950/40'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+              }`}
+            >
+              <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
+                !isPublic ? 'bg-brand-100 dark:bg-brand-900/50 text-brand-600 dark:text-brand-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'
+              }`}>
+                <Lock className="w-4 h-4" />
+              </div>
+              <div>
+                <p className={`text-sm font-semibold ${!isPublic ? 'text-brand-700 dark:text-brand-400' : 'text-gray-700 dark:text-gray-300'}`}>Private</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Only you can see this portfolio</p>
+              </div>
+              {!isPublic && <Check className="w-4 h-4 text-brand-600 dark:text-brand-400 ml-auto" />}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => !loading && handleToggle(true)}
+              className={`flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all ${
+                isPublic
+                  ? 'border-brand-500 bg-brand-50 dark:bg-brand-950/40'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+              }`}
+            >
+              <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
+                isPublic ? 'bg-brand-100 dark:bg-brand-900/50 text-brand-600 dark:text-brand-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'
+              }`}>
+                <Globe className="w-4 h-4" />
+              </div>
+              <div>
+                <p className={`text-sm font-semibold ${isPublic ? 'text-brand-700 dark:text-brand-400' : 'text-gray-700 dark:text-gray-300'}`}>Anyone with the link</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Anyone who has the link can view your portfolio</p>
+              </div>
+              {isPublic && <Check className="w-4 h-4 text-brand-600 dark:text-brand-400 ml-auto" />}
+            </button>
+          </div>
+
+          {/* Share URL */}
+          {shareUrl && (
+            <div className="mt-2">
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Your portfolio link</p>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm text-gray-700 dark:text-gray-300 font-mono truncate">
+                  <Link2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                  <span className="truncate">{shareUrl}</span>
+                </div>
+                <Button size="sm" variant="outline" onClick={handleCopy}>
+                  {copied ? <><Check className="w-3.5 h-3.5" /> Copied</> : 'Copy'}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => window.open(shareUrl, '_blank')}>
+                  <Eye className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="What's included in your portfolio"
+          description="Your public portfolio shows the following sections from your profile."
+        />
+        <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+          {[
+            'Name, headline, and profile photo',
+            'About / summary',
+            'Work experience',
+            'Education',
+            'Skills',
+            'Certificates & languages',
+            'Contact links (website, LinkedIn, GitHub)',
+          ].map(item => (
+            <li key={item} className="flex items-center gap-2">
+              <Check className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+              {item}
+            </li>
+          ))}
+        </ul>
+      </Card>
+    </div>
+  )
+}
+

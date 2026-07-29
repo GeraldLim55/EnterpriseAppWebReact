@@ -164,6 +164,12 @@ export const profileApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
   },
+
+  updateShare: (data) =>
+    client.put('/profile/share', data),
+
+  getPublic: (token) =>
+    client.get(`/profile/public/${token}`),
 }
 
 // ─── Resume API ───────────────────────────────────────────────────────────
@@ -262,4 +268,37 @@ export const settingsApi = {
 export const systemApi = {
   health: () =>
     client.get('/system/health'),
+}
+
+// ─── Sales Orders API ─────────────────────────────────────────────────────
+export const salesOrdersApi = {
+  getAll: (params) =>
+    client.get('/salesorders', { params }),
+
+  getById: (id) =>
+    client.get(`/salesorders/${id}`),
+
+  create: (data) =>
+    client.post('/salesorders/save', data),
+
+  update: (id, data) =>
+    client.post('/salesorders/save', { ...data, id }),
+
+  delete: (id) =>
+    client.delete(`/salesorders/${id}`),
+
+  submit: (id) =>
+    client.post(`/salesorders/${id}/submit`),
+
+  approve: (id) =>
+    client.post(`/salesorders/${id}/approve`),
+
+  reject: (id, reason) =>
+    client.post(`/salesorders/${id}/reject`, { reason }),
+
+  getSettings: () =>
+    client.get('/salesorders/settings'),
+
+  saveSettings: (data) =>
+    client.put('/salesorders/settings', data),
 }

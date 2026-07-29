@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { GoogleOAuthProvider } from '@react-oauth/google'
 import { Toaster } from 'react-hot-toast'
+import { ThemeProvider } from '@/context/ThemeContext'
 import App from './App'
 import './index.css'
 
@@ -19,27 +20,30 @@ const queryClient = new QueryClient({
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ''}>
-    <QueryClientProvider client={queryClient}>
-      <App />
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#fff',
-            color: '#111827',
-            border: '1px solid #e5e7eb',
-            borderRadius: '0.5rem',
-            fontSize: '0.875rem',
-            boxShadow: '0 4px 12px rgb(0 0 0 / 0.08)',
-          },
-          success: { iconTheme: { primary: '#6366f1', secondary: '#fff' } },
-          error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
-        }}
-      />
-      <ReactQueryDevtools initialIsOpen={false} />
-    </QueryClientProvider>
-    </GoogleOAuthProvider>
+    <ThemeProvider>
+      <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ''}>
+        <QueryClientProvider client={queryClient}>
+          <App />
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              className: 'dark:!bg-gray-800 dark:!text-gray-100 dark:!border-gray-700',
+              style: {
+                background: '#fff',
+                color: '#111827',
+                border: '1px solid #e5e7eb',
+                borderRadius: '0.5rem',
+                fontSize: '0.875rem',
+                boxShadow: '0 4px 12px rgb(0 0 0 / 0.08)',
+              },
+              success: { iconTheme: { primary: '#6366f1', secondary: '#fff' } },
+              error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
+            }}
+          />
+          <ReactQueryDevtools initialIsOpen={false} />
+        </QueryClientProvider>
+      </GoogleOAuthProvider>
+    </ThemeProvider>
   </React.StrictMode>,
 )

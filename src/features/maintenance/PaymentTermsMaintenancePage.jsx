@@ -44,7 +44,7 @@ function Toggle({ checked, onChange, label }) {
       >
         <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ${checked ? 'translate-x-4' : 'translate-x-0'}`} />
       </button>
-      {label && <span className="text-sm text-gray-700">{label}</span>}
+      {label && <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>}
     </label>
   )
 }
@@ -105,7 +105,7 @@ export default function PaymentTermsMaintenancePage() {
             <Clock className="w-4 h-4 text-brand-400" />
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-900">{row.name}</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{row.name}</p>
             {row.description && <p className="text-xs text-gray-400">{row.description}</p>}
           </div>
         </div>
@@ -116,7 +116,7 @@ export default function PaymentTermsMaintenancePage() {
       header: 'Due days',
       align: 'right',
       render: (row) => row.dueDays != null
-        ? <span className="text-sm font-medium text-gray-700">{row.dueDays} days</span>
+        ? <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{row.dueDays} days</span>
         : <span className="text-gray-300">—</span>,
     },
     {
@@ -144,7 +144,7 @@ export default function PaymentTermsMaintenancePage() {
       width: '80px',
       render: (row) => (
         <div className="flex items-center gap-1">
-          <button onClick={() => setEditTerm(row)} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors" title="Edit">
+          <button onClick={() => setEditTerm(row)} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300 transition-colors" title="Edit">
             <Pencil className="w-3.5 h-3.5" />
           </button>
           <button onClick={() => setDeleteId(row.id)} className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors" title="Delete">
@@ -273,7 +273,7 @@ function PaymentTermModal({ open, term, onClose, onSuccess }) {
         <Textarea label="Description" rows={2} placeholder="Optional notes about this term" error={errors.description?.message} {...register('description')} />
         <div className="flex flex-col gap-3 pt-1 border-t border-gray-100">
           <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-gray-700">Status</span>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Status</span>
             <Controller
               name="isActive"
               control={control}
@@ -283,7 +283,7 @@ function PaymentTermModal({ open, term, onClose, onSuccess }) {
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-gray-700">Default term</span>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Default term</span>
             <Controller
               name="isDefault"
               control={control}

@@ -74,10 +74,10 @@ export const COUNTRY_CODES = [
 export function PhoneInput({ label = 'Phone number', countryCodeProps, phoneProps, placeholder = '101234567', colSpan2 = true }) {
   return (
     <div className={colSpan2 ? 'sm:col-span-2' : ''}>
-      {label && <label className="text-sm font-medium text-gray-700 block mb-1.5">{label}</label>}
+      {label && <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1.5">{label}</label>}
       <div className="flex gap-2">
         <select
-          className="h-9 rounded-lg border border-gray-300 bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 w-52 flex-shrink-0"
+          className="h-9 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500 w-52 flex-shrink-0"
           {...countryCodeProps}
         >
           {COUNTRY_CODES.map(c => (
@@ -87,7 +87,7 @@ export function PhoneInput({ label = 'Phone number', countryCodeProps, phoneProp
         <input
           type="tel"
           placeholder={placeholder}
-          className="flex-1 h-9 rounded-lg border border-gray-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          className="flex-1 h-9 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
           {...phoneProps}
         />
       </div>

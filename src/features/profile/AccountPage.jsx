@@ -4,11 +4,13 @@ import { z } from 'zod'
 import { Eye, Lock, ShieldCheck, ShieldOff } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
+import { OtpInput } from '@/components/ui/OtpInput'
 import { authApi, accountApi } from '@/api'
 import { PageHeader } from '@/components/layout'
 import { Button, Input, Card, CardHeader } from '@/components/ui'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useAuth } from '@/context/AuthContext'
+import { useTheme } from '@/context/ThemeContext'
 import toast from 'react-hot-toast'
 import { toastFormErrors } from '@/lib/utils'
 
@@ -20,10 +22,46 @@ export default function AccountPage() {
       <PageHeader title="Account" description="Manage your account credentials and personal details." breadcrumbs={[{ label: 'Account' }]} />
       <div className="flex flex-col gap-6">
         <AccountInfoForm session={session} />
+        <AppearanceForm />
         <TwoFactorForm />
         <ChangePasswordForm />
       </div>
     </div>
+  )
+}
+
+// ─── Appearance / Theme ───────────────────────────────────────────────────
+function AppearanceForm() {
+  const { theme, setTheme } = useTheme()
+
+  const options = [
+    { value: 'light', label: 'Light', icon: '☀️', desc: 'Always use light mode' },
+    { value: 'dark', label: 'Dark', icon: '🌙', desc: 'Always use dark mode' },
+    { value: 'system', label: 'System', icon: '💻', desc: 'Follow your OS setting' },
+  ]
+
+  return (
+    <Card>
+      <CardHeader title="Appearance" description="Choose how the app looks to you." />
+      <div className="flex gap-3 flex-wrap">
+        {options.map(opt => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => setTheme(opt.value)}
+            className={`flex flex-col items-center gap-1.5 px-5 py-4 rounded-xl border-2 text-sm font-medium transition-all ${
+              theme === opt.value
+                ? 'border-brand-500 bg-brand-50 dark:bg-brand-950/40 text-brand-700 dark:text-brand-400'
+                : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800'
+            }`}
+          >
+            <span className="text-xl">{opt.icon}</span>
+            <span>{opt.label}</span>
+            <span className="text-xs font-normal text-gray-500 dark:text-gray-400">{opt.desc}</span>
+          </button>
+        ))}
+      </div>
+    </Card>
   )
 }
 
@@ -176,18 +214,14 @@ function TwoFactorForm() {
             <canvas ref={canvasRef} className="rounded-lg border border-gray-200" />
             <div>
               <p className="text-xs text-gray-500 mb-1">Or enter this key manually:</p>
-              <code className="text-xs bg-gray-100 px-2 py-1 rounded font-mono break-all">{setupData.manualKey}</code>
+              <code className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-2 py-1 rounded font-mono break-all">{setupData.manualKey}</code>
             </div>
-            <Input
-              label="Enter the 6-digit code to confirm"
-              placeholder="000000"
-              maxLength={6}
-              inputMode="numeric"
-              value={code}
-              onChange={e => setCode(e.target.value)}
-            />
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Enter the 6-digit code to confirm</label>
+              <OtpInput value={code} onChange={setCode} disabled={loading} />
+            </div>
             <div className="flex gap-2">
-              <Button loading={loading} onClick={confirmEnable}>Confirm & Enable</Button>
+              <Button loading={loading} onClick={confirmEnable} disabled={code.length < 6}>Confirm & Enable</Button>
               <Button variant="outline" onClick={() => { setStep('idle'); setCode(''); }}>Cancel</Button>
             </div>
           </div>
@@ -195,17 +229,13 @@ function TwoFactorForm() {
 
         {step === 'disable' && (
           <div className="space-y-4">
-            <p className="text-sm text-gray-600">Enter your authenticator code to disable 2FA.</p>
-            <Input
-              label="Authenticator code"
-              placeholder="000000"
-              maxLength={6}
-              inputMode="numeric"
-              value={code}
-              onChange={e => setCode(e.target.value)}
-            />
+            <p className="text-sm text-gray-600 dark:text-gray-400">Enter your authenticator code to disable 2FA.</p>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Authenticator code</label>
+              <OtpInput value={code} onChange={setCode} disabled={loading} />
+            </div>
             <div className="flex gap-2">
-              <Button variant="destructive" loading={loading} onClick={confirmDisable}>Disable 2FA</Button>
+              <Button variant="destructive" loading={loading} onClick={confirmDisable} disabled={code.length < 6}>Disable 2FA</Button>
               <Button variant="outline" onClick={() => { setStep('idle'); setCode(''); }}>Cancel</Button>
             </div>
           </div>

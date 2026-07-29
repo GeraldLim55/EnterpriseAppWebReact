@@ -24,6 +24,10 @@ const UsersPage = lazy(() => import('@/features/users/UsersPage'))
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage'))
 const CompanySettingsPage = lazy(() => import('@/features/settings/CompanySettingsPage'))
 const InvoiceSettingsPage = lazy(() => import('@/features/settings/InvoiceSettingsPage'))
+const SalesOrdersPage = lazy(() => import('@/features/sales-orders/SalesOrdersPage'))
+const SalesOrderCreatePage = lazy(() => import('@/features/sales-orders/SalesOrderCreatePage'))
+const SalesOrderDetailPage = lazy(() => import('@/features/sales-orders/SalesOrderDetailPage'))
+const SalesOrderSettingsPage = lazy(() => import('@/features/sales-orders/SalesOrderSettingsPage'))
 const NotFoundPage = lazy(() => import('./NotFoundPage'))
 const BrandMaintenancePage = lazy(() => import('@/features/maintenance/BrandMaintenancePage'))
 const CategoryMaintenancePage = lazy(() => import('@/features/maintenance/CategoryMaintenancePage'))
@@ -31,6 +35,7 @@ const LocationMaintenancePage = lazy(() => import('@/features/maintenance/Locati
 const PaymentTermsMaintenancePage = lazy(() => import('@/features/maintenance/PaymentTermsMaintenancePage'))
 const SystemDownPage = lazy(() => import('@/features/errors/SystemDownPage'))
 const NotSubscribedPage = lazy(() => import('@/features/errors/NotSubscribedPage'))
+const PublicPortfolioPage = lazy(() => import('@/features/portfolio/PublicPortfolioPage'))
 
 // ─── Protected Route ──────────────────────────────────────────────────────
 function ProtectedRoute({ minLevel, moduleKey }) {
@@ -93,6 +98,10 @@ export default function AppRouter() {
           <Route path="/invoices/create" element={<InvoiceCreatePage />} />
           <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
           <Route path="/invoices/:id/edit" element={<InvoiceEditPage />} />
+          <Route path="/sales-orders" element={<SalesOrdersPage />} />
+          <Route path="/sales-orders/create" element={<SalesOrderCreatePage />} />
+          <Route path="/sales-orders/:id" element={<SalesOrderDetailPage />} />
+          <Route path="/sales-orders/:id/edit" element={<SalesOrderCreatePage />} />
         </Route>
 
         {/* Protected — Manager+ */}
@@ -110,6 +119,7 @@ export default function AppRouter() {
         {/* Protected — Admin+ and ERP module */}
         <Route element={<ProtectedRoute minLevel={80} moduleKey={MODULES.Erp} />}>
           <Route path="/settings/invoice" element={<InvoiceSettingsPage />} />
+          <Route path="/settings/sales-orders" element={<SalesOrderSettingsPage />} />
           <Route path="/maintenance/brand" element={<BrandMaintenancePage />} />
           <Route path="/maintenance/category" element={<CategoryMaintenancePage />} />
           <Route path="/maintenance/location" element={<LocationMaintenancePage />} />
@@ -120,6 +130,9 @@ export default function AppRouter() {
         <Route element={<ProtectedRoute />}>
           <Route path="/not-subscribed" element={<NotSubscribedPage />} />
         </Route>
+
+        {/* Public portfolio — no auth, no layout */}
+        <Route path="/p/:token" element={<Suspense fallback={<LoadingScreen />}><PublicPortfolioPage /></Suspense>} />
 
         {/* System down — public, no auth, no layout */}
         <Route path="/system-down" element={<Suspense fallback={<LoadingScreen />}><SystemDownPage /></Suspense>} />

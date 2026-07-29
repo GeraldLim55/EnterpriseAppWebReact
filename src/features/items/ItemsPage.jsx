@@ -101,12 +101,12 @@ export default function ItemsPage() {
       key: 'imageUrl', header: '', width: '52px',
       render: (row) => row.imageUrl
         ? <img src={row.imageUrl} alt={row.name} className="w-9 h-9 rounded-lg object-cover border border-gray-100" />
-        : <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center"><Package className="w-4 h-4 text-gray-400" /></div>
+        : <div className="w-9 h-9 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center"><Package className="w-4 h-4 text-gray-400" /></div>
     },
     { key: 'name', header: 'Name', sortable: true,
       render: (row) => (
         <div>
-          <p className="font-medium text-gray-900 text-sm">{row.name}</p>
+          <p className="font-medium text-gray-900 dark:text-gray-100 text-sm">{row.name}</p>
           {row.sku && <p className="text-xs text-gray-400">{row.sku}</p>}
         </div>
       )
@@ -115,7 +115,7 @@ export default function ItemsPage() {
       render: (row) => <span className="text-sm text-gray-600">{row.categoryName ?? '—'}</span>
     },
     { key: 'price', header: 'Price', sortable: true, align: 'right',
-      render: (row) => <span className="font-medium text-gray-900">{formatCurrency(row.price)}</span>
+      render: (row) => <span className="font-medium text-gray-900 dark:text-gray-100">{formatCurrency(row.price)}</span>
     },
     { key: 'stock', header: 'Stock', sortable: true, align: 'right',
       render: (row) => (
@@ -133,13 +133,13 @@ export default function ItemsPage() {
         <div className="flex items-center gap-1">
           <button
             onClick={() => { setEditItem(row); setShowForm(true) }}
-            className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300"
           >
             <Pencil className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => navigate(`/items/${row.id}`)}
-            className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300"
           >
             <Upload className="w-3.5 h-3.5" />
           </button>
@@ -396,7 +396,7 @@ export function ItemDetailPage() {
           {item.imageUrl ? (
             <img src={item.imageUrl} alt={item.name} className="w-full rounded-lg object-cover max-h-64 border border-gray-100" />
           ) : (
-            <div className="w-full h-48 rounded-lg bg-gray-100 flex flex-col items-center justify-center gap-2 text-gray-400">
+            <div className="w-full h-48 rounded-lg bg-gray-100 dark:bg-gray-800 flex flex-col items-center justify-center gap-2 text-gray-400">
               <Image className="w-10 h-10" />
               <p className="text-sm">No image</p>
             </div>
@@ -430,7 +430,7 @@ export function ItemDetailPage() {
               ].map(([label, value]) => (
                 <div key={label}>
                   <dt className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-0.5">{label}</dt>
-                  <dd className="text-gray-900 font-medium">{value}</dd>
+                  <dd className="text-gray-900 dark:text-gray-100 font-medium">{value}</dd>
                 </div>
               ))}
               <div className="col-span-2">

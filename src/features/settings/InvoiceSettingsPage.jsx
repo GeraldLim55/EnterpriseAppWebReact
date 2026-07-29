@@ -84,7 +84,7 @@ export default function InvoiceSettingsPage() {
             {...register('runningNumber')}
           />
 
-          <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">
+          <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
             <p className="text-xs text-gray-500 mb-1">Next invoice number preview</p>
             <p className="text-lg font-semibold text-brand-700">{preview}</p>
           </div>

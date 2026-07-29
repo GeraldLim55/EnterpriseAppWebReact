@@ -76,7 +76,7 @@ export default function UsersPage() {
             {getInitials(row.firstName, row.lastName, row.username)}
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-900">
+            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
               {row.firstName ? `${row.firstName} ${row.lastName ?? ''}`.trim() : row.username}
             </p>
             <p className="text-xs text-gray-400">{row.email}</p>
@@ -100,7 +100,7 @@ export default function UsersPage() {
     { key: 'actions', header: '', width: '80px',
       render: (row) => row.id !== session?.userId ? (
         <div className="flex items-center gap-1">
-          <button onClick={() => setEditUser(row)} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700">
+          <button onClick={() => setEditUser(row)} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300">
             <Pencil className="w-3.5 h-3.5" />
           </button>
           <button onClick={() => setDeleteId(row.id)} className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600">

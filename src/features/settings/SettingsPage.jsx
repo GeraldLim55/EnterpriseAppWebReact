@@ -152,9 +152,9 @@ export default function SettingsPage() {
           <CardHeader title="Date & localisation" description="Controls how dates are displayed throughout the app." />
           <div className="flex flex-col gap-4">
             <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1.5">Date display format</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1.5">Date display format</label>
               <select
-                className="w-full h-9 rounded-lg border border-gray-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full h-9 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 value={getVal('DateDisplayFormat')}
                 onChange={e => updateMutation.mutate({ key: 'DateDisplayFormat', value: e.target.value })}
               >
@@ -181,14 +181,14 @@ export default function SettingsPage() {
         {/* Company profile — ERP module only */}
         {hasModule(MODULES.Erp) && (
           <Link to="/settings/company" className="block">
-            <Card className="hover:border-brand-300 hover:bg-brand-50 transition-colors cursor-pointer">
+            <Card className="hover:border-brand-300 dark:hover:border-brand-700 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors cursor-pointer">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-brand-100 rounded-lg">
-                  <Building2 className="w-5 h-5 text-brand-600" />
+                <div className="p-2 bg-brand-100 dark:bg-brand-900/40 rounded-lg">
+                  <Building2 className="w-5 h-5 text-brand-600 dark:text-brand-400" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">Company profile</p>
-                  <p className="text-xs text-gray-500">Your company information</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Company profile</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Your company information</p>
                 </div>
               </div>
             </Card>
@@ -250,9 +250,9 @@ function SettingSelect({ label, value, options, onSave }) {
   return (
     <form onSubmit={handleSubmit(d => onSave(d.value))} className="flex items-end gap-3">
       <div className="flex-1">
-        <label className="text-sm font-medium text-gray-700 block mb-1.5">{label}</label>
+        <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1.5">{label}</label>
         <select
-          className="w-full h-9 rounded-lg border border-gray-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          className="w-full h-9 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
           {...register('value')}
         >
           {options.map(o => (

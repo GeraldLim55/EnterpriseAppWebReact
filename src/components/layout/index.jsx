@@ -5,7 +5,7 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Package, FileText, Users, Settings,
   UserCircle, LogOut, Menu, X, ChevronRight, Building2,
-  BarChart3, Bell, Wrench, Tag, ChevronDown, FolderTree, MapPin, Clock, Contact,
+  BarChart3, Bell, Wrench, Tag, ChevronDown, FolderTree, MapPin, Clock, Contact, ShoppingCart,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { cn, getInitials } from '@/lib/utils'
@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, minLevel: ROLE_LEVELS.Manager },
   { label: 'Items', href: '/items', icon: Package },
   { label: 'Invoices', href: '/invoices', icon: FileText, moduleKey: MODULES.Erp },
+  { label: 'Sales Orders', href: '/sales-orders', icon: ShoppingCart, moduleKey: MODULES.Erp },
   { label: 'Users', href: '/users', icon: Users, minLevel: ROLE_LEVELS.Admin },
   { label: 'Profile', href: '/profile', icon: Contact, moduleKey: MODULES.Profile },
   { label: 'Account', href: '/account', icon: UserCircle },
@@ -44,6 +45,7 @@ const NAV_GROUPS = [
       { label: 'General', href: '/settings', icon: Settings },
       { label: 'Company Profile', href: '/settings/company', icon: Building2 },
       { label: 'Invoice Settings', href: '/settings/invoice', icon: FileText, moduleKey: MODULES.Erp },
+      { label: 'Sales Order Settings', href: '/settings/sales-orders', icon: ShoppingCart, moduleKey: MODULES.Erp },
     ],
   },
 ]
@@ -59,7 +61,6 @@ function NavGroup({ group, collapsed, onChildClick }) {
   if (!visibleChildren.length) return null
 
   if (collapsed) {
-    // In collapsed mode show only the group icon, linking to the first child
     return (
       <NavLink
         to={visibleChildren[0].href}
@@ -78,22 +79,14 @@ function NavGroup({ group, collapsed, onChildClick }) {
     <div className="mb-0.5">
       <button
         onClick={() => setOpen(o => !o)}
-        className={cn(
-          'nav-link w-full',
-          isGroupActive && 'active',
-        )}
+        className={cn('nav-link w-full', isGroupActive && 'active')}
       >
         <group.icon className="w-4 h-4 flex-shrink-0" />
         <span className="flex-1 text-left">{group.label}</span>
-        <ChevronDown
-          className={cn(
-            'w-3.5 h-3.5 text-gray-400 transition-transform duration-200',
-            open && 'rotate-180',
-          )}
-        />
+        <ChevronDown className={cn('w-3.5 h-3.5 text-gray-400 dark:text-gray-500 transition-transform duration-200', open && 'rotate-180')} />
       </button>
       {open && (
-        <div className="mt-0.5 ml-3 pl-3 border-l border-gray-100">
+        <div className="mt-0.5 ml-3 pl-3 border-l border-gray-100 dark:border-gray-800">
           {visibleChildren.map(child => (
             <NavLink
               key={child.href}
@@ -132,27 +125,26 @@ function Sidebar({ collapsed, onToggle }) {
   return (
     <aside
       className={cn(
-        'flex flex-col h-full bg-white border-r border-gray-200 transition-all duration-200',
+        'flex flex-col h-full bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transition-all duration-200',
         collapsed ? 'w-16' : 'w-60',
       )}
     >
       {/* Logo */}
-      <div className={cn('flex items-center h-16 px-4 border-b border-gray-100', collapsed ? 'justify-center' : 'gap-3')}>
+      <div className={cn('flex items-center h-16 px-4 border-b border-gray-100 dark:border-gray-800', collapsed ? 'justify-center' : 'gap-3')}>
         <div className="w-7 h-7 rounded-lg bg-brand-600 flex items-center justify-center flex-shrink-0">
           <BarChart3 className="w-4 h-4 text-white" />
         </div>
         {!collapsed && (
-          <span className="text-sm font-semibold text-gray-900 truncate">{displayName}</span>
+          <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{displayName}</span>
         )}
       </div>
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-3 px-2">
-        {/* Tenant badge */}
         {!collapsed && session && (
-          <div className="flex items-center gap-2 px-3 py-2 mb-2 rounded-lg bg-brand-50">
-            <Building2 className="w-3.5 h-3.5 text-brand-600 flex-shrink-0" />
-            <span className="text-xs font-medium text-brand-700 truncate">
+          <div className="flex items-center gap-2 px-3 py-2 mb-2 rounded-lg bg-brand-50 dark:bg-brand-950/40">
+            <Building2 className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400 flex-shrink-0" />
+            <span className="text-xs font-medium text-brand-700 dark:text-brand-400 truncate">
               Tenant #{session.tenantId}
             </span>
           </div>
@@ -175,43 +167,42 @@ function Sidebar({ collapsed, onToggle }) {
             <item.icon className="w-4 h-4 flex-shrink-0" />
             {!collapsed && <span>{item.label}</span>}
             {!collapsed && item.badge && (
-              <span className="ml-auto rounded-full bg-brand-100 text-brand-700 text-xs font-medium px-1.5 py-0.5">
+              <span className="ml-auto rounded-full bg-brand-100 dark:bg-brand-900 text-brand-700 dark:text-brand-300 text-xs font-medium px-1.5 py-0.5">
                 {item.badge}
               </span>
             )}
           </NavLink>
         ))}
 
-        {/* Nav groups */}
         {NAV_GROUPS.filter(g => (!g.minLevel || hasMinLevel(g.minLevel)) && (!g.moduleKey || hasModule(g.moduleKey))).map(group => (
           <NavGroup key={group.basePath} group={group} collapsed={collapsed} />
         ))}
       </nav>
 
       {/* User section */}
-      <div className={cn('border-t border-gray-100 p-3', collapsed && 'flex justify-center')}>
+      <div className={cn('border-t border-gray-100 dark:border-gray-800 p-3', collapsed && 'flex justify-center')}>
         {collapsed ? (
           <button
             onClick={handleLogout}
-            className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+            className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
             title="Log out"
           >
             <LogOut className="w-4 h-4" />
           </button>
         ) : (
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-xs font-semibold text-brand-700 flex-shrink-0">
+            <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900 flex items-center justify-center text-xs font-semibold text-brand-700 dark:text-brand-300 flex-shrink-0">
               {getInitials(session?.firstName, session?.lastName, session?.username)}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-gray-900 truncate">
+              <p className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate">
                 {session?.firstName ? `${session.firstName} ${session.lastName ?? ''}`.trim() : session?.username}
               </p>
-              <p className="text-xs text-gray-500 truncate">{session?.roleName}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{session?.roleName}</p>
             </div>
             <button
               onClick={handleLogout}
-              className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+              className="p-1.5 rounded-lg text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
               title="Log out"
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -233,20 +224,20 @@ function Header({ onMenuToggle }) {
   })
   const displayName = company?.companyName || session?.tenantName
   return (
-    <header className="h-14 flex items-center justify-between px-5 border-b border-gray-200 bg-white flex-shrink-0">
+    <header className="h-14 flex items-center justify-between px-5 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex-shrink-0">
       <button
         onClick={onMenuToggle}
-        className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors lg:hidden"
+        className="p-1.5 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors lg:hidden"
       >
         <Menu className="w-5 h-5" />
       </button>
       {displayName && (
-        <span className="text-sm font-semibold text-gray-700 ml-4 truncate max-w-[200px]">
+        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-4 truncate max-w-[200px]">
           {displayName}
         </span>
       )}
       <div className="flex items-center gap-2 ml-auto">
-        <button className="relative p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors">
+        <button className="relative p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
           <Bell className="w-4 h-4" />
         </button>
       </div>
@@ -277,15 +268,15 @@ function MobileDrawer({ open, onClose }) {
   return (
     <div className="fixed inset-0 z-50 lg:hidden">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="absolute left-0 top-0 bottom-0 w-72 bg-white flex flex-col shadow-xl animate-slide-in">
-        <div className="flex items-center justify-between px-5 h-16 border-b border-gray-100">
+      <div className="absolute left-0 top-0 bottom-0 w-72 bg-white dark:bg-gray-900 flex flex-col shadow-xl animate-slide-in">
+        <div className="flex items-center justify-between px-5 h-16 border-b border-gray-100 dark:border-gray-800">
           <div className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-lg bg-brand-600 flex items-center justify-center">
               <BarChart3 className="w-4 h-4 text-white" />
             </div>
-            <span className="text-sm font-semibold text-gray-900 truncate">{displayName}</span>
+            <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{displayName}</span>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100">
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -309,16 +300,16 @@ function MobileDrawer({ open, onClose }) {
             <NavGroup key={group.basePath} group={group} collapsed={false} onChildClick={onClose} />
           ))}
         </nav>
-        <div className="border-t border-gray-100 p-4">
+        <div className="border-t border-gray-100 dark:border-gray-800 p-4">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center text-xs font-semibold text-brand-700">
+            <div className="w-9 h-9 rounded-full bg-brand-100 dark:bg-brand-900 flex items-center justify-center text-xs font-semibold text-brand-700 dark:text-brand-300">
               {getInitials(session?.firstName, session?.lastName, session?.username)}
             </div>
             <div>
-              <p className="text-sm font-semibold text-gray-900">
+              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                 {session?.firstName ? `${session.firstName} ${session.lastName ?? ''}`.trim() : session?.username}
               </p>
-              <p className="text-xs text-gray-500">{session?.roleName}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{session?.roleName}</p>
             </div>
           </div>
           <Button variant="outline" className="w-full" leftIcon={<LogOut className="w-4 h-4" />} onClick={handleLogout}>
@@ -336,7 +327,7 @@ export function AppLayout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
       {/* Desktop sidebar */}
       <div className="hidden lg:flex">
         <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(p => !p)} />
@@ -364,21 +355,21 @@ export function PageHeader({ title, description, action, breadcrumbs }) {
     <div className="flex items-start justify-between mb-6">
       <div>
         {breadcrumbs && (
-          <nav className="flex items-center gap-1.5 text-xs text-gray-500 mb-1.5">
+          <nav className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 mb-1.5">
             {breadcrumbs.map((b, i) => (
               <React.Fragment key={i}>
                 {i > 0 && <span>/</span>}
                 {b.href ? (
-                  <NavLink to={b.href} className="hover:text-gray-700 transition-colors">{b.label}</NavLink>
+                  <NavLink to={b.href} className="hover:text-gray-700 dark:hover:text-gray-200 transition-colors">{b.label}</NavLink>
                 ) : (
-                  <span className="text-gray-700 font-medium">{b.label}</span>
+                  <span className="text-gray-700 dark:text-gray-200 font-medium">{b.label}</span>
                 )}
               </React.Fragment>
             ))}
           </nav>
         )}
-        <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
-        {description && <p className="text-sm text-gray-500 mt-1">{description}</p>}
+        <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{title}</h1>
+        {description && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{description}</p>}
       </div>
       {action && <div className="flex items-center gap-2 mt-0.5">{action}</div>}
     </div>

@@ -47,7 +47,7 @@ function Toggle({ checked, onChange, label }) {
           }`}
         />
       </button>
-      {label && <span className="text-sm text-gray-700">{label}</span>}
+      {label && <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>}
     </label>
   )
 }
@@ -141,7 +141,7 @@ export default function CategoryMaintenancePage() {
           <div className="w-7 h-7 rounded bg-brand-50 flex items-center justify-center flex-shrink-0">
             <FolderTree className="w-3.5 h-3.5 text-brand-400" />
           </div>
-          <span className={`text-sm font-medium text-gray-900 ${row._depth > 0 ? 'text-gray-700' : ''}`}>
+          <span className={`text-sm font-medium text-gray-900 dark:text-gray-100 ${row._depth > 0 ? 'text-gray-700 dark:text-gray-300' : ''}`}>
             {row.name}
           </span>
           {row._depth > 0 && (
@@ -188,7 +188,7 @@ export default function CategoryMaintenancePage() {
           )}
           <button
             onClick={() => setEditCategory(row)}
-            className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+            className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
             title="Edit"
           >
             <Pencil className="w-3.5 h-3.5" />
@@ -390,7 +390,7 @@ function CategoryModal({ open, category, parentId, parentName, onClose, onSucces
           {...register('description')}
         />
         <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-gray-700">Status</span>
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Status</span>
           <Controller
             name="isActive"
             control={control}

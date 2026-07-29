@@ -10,11 +10,12 @@ export function Button({
   const base = 'inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50'
   const variants = {
     primary: 'bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800',
-    secondary: 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300',
-    ghost: 'text-gray-600 hover:bg-gray-100 active:bg-gray-200',
+    secondary: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300',
+    ghost: 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-200',
     danger: 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800',
+    destructive: 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800',
     success: 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800',
-    outline: 'border border-gray-300 text-gray-700 hover:bg-gray-50 active:bg-gray-100',
+    outline: 'border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 active:bg-gray-100',
   }
   const sizes = {
     sm: 'h-8 px-3 text-xs',
@@ -41,7 +42,7 @@ export const Input = React.forwardRef(
     return (
       <div className="flex flex-col gap-1.5">
         {label && (
-          <label htmlFor={inputId} className="text-sm font-medium text-gray-700">
+          <label htmlFor={inputId} className="text-sm font-medium text-gray-700 dark:text-gray-300">
             {label}
             {props.required && <span className="text-red-500 ml-0.5">*</span>}
           </label>
@@ -56,10 +57,12 @@ export const Input = React.forwardRef(
             id={inputId}
             ref={ref}
             className={cn(
-              'w-full h-9 rounded-lg border bg-white px-3 text-sm text-gray-900 placeholder-gray-400',
+              'w-full h-9 rounded-lg border bg-white dark:bg-gray-900 px-3 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500',
               'transition-colors duration-150',
               'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent',
-              error ? 'border-red-400 focus:ring-red-400' : 'border-gray-300 hover:border-gray-400',
+              error
+                ? 'border-red-400 focus:ring-red-400'
+                : 'border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600',
               leftIcon && 'pl-9',
               rightIcon && 'pr-9',
               className,
@@ -73,7 +76,7 @@ export const Input = React.forwardRef(
           )}
         </div>
         {error && <p className="text-xs text-red-500">{error}</p>}
-        {hint && !error && <p className="text-xs text-gray-500">{hint}</p>}
+        {hint && !error && <p className="text-xs text-gray-500 dark:text-gray-400">{hint}</p>}
       </div>
     )
   },
@@ -87,7 +90,7 @@ export const Textarea = React.forwardRef(
     return (
       <div className="flex flex-col gap-1.5">
         {label && (
-          <label htmlFor={inputId} className="text-sm font-medium text-gray-700">
+          <label htmlFor={inputId} className="text-sm font-medium text-gray-700 dark:text-gray-300">
             {label}
             {props.required && <span className="text-red-500 ml-0.5">*</span>}
           </label>
@@ -97,16 +100,16 @@ export const Textarea = React.forwardRef(
           ref={ref}
           rows={3}
           className={cn(
-            'w-full rounded-lg border bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400',
+            'w-full rounded-lg border bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500',
             'transition-colors duration-150 resize-y',
             'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent',
-            error ? 'border-red-400' : 'border-gray-300 hover:border-gray-400',
+            error ? 'border-red-400' : 'border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600',
             className,
           )}
           {...props}
         />
         {error && <p className="text-xs text-red-500">{error}</p>}
-        {hint && !error && <p className="text-xs text-gray-500">{hint}</p>}
+        {hint && !error && <p className="text-xs text-gray-500 dark:text-gray-400">{hint}</p>}
       </div>
     )
   },
@@ -120,7 +123,7 @@ export const Select = React.forwardRef(
     return (
       <div className="flex flex-col gap-1.5">
         {label && (
-          <label htmlFor={inputId} className="text-sm font-medium text-gray-700">
+          <label htmlFor={inputId} className="text-sm font-medium text-gray-700 dark:text-gray-300">
             {label}
             {props.required && <span className="text-red-500 ml-0.5">*</span>}
           </label>
@@ -129,10 +132,10 @@ export const Select = React.forwardRef(
           id={inputId}
           ref={ref}
           className={cn(
-            'w-full h-9 rounded-lg border bg-white px-3 text-sm text-gray-900',
+            'w-full h-9 rounded-lg border bg-white dark:bg-gray-900 px-3 text-sm text-gray-900 dark:text-gray-100',
             'transition-colors duration-150 cursor-pointer',
             'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent',
-            error ? 'border-red-400' : 'border-gray-300 hover:border-gray-400',
+            error ? 'border-red-400' : 'border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600',
             className,
           )}
           {...props}
@@ -151,12 +154,12 @@ Select.displayName = 'Select'
 
 // ─── Badge ────────────────────────────────────────────────────────────────
 const badgeVariants = {
-  default: 'bg-gray-100 text-gray-700',
-  success: 'bg-green-100 text-green-700',
-  warning: 'bg-amber-100 text-amber-700',
-  danger: 'bg-red-100 text-red-700',
-  info: 'bg-blue-100 text-blue-700',
-  purple: 'bg-purple-100 text-purple-700',
+  default: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300',
+  success: 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400',
+  warning: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400',
+  danger: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400',
+  info: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400',
+  purple: 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400',
 }
 
 export function Badge({ variant = 'default', children, className, dot }) {
@@ -185,10 +188,10 @@ export function Spinner({ size = 'md', className }) {
 
 export function LoadingScreen() {
   return (
-    <div className="flex h-screen w-full items-center justify-center bg-gray-50">
+    <div className="flex h-screen w-full items-center justify-center bg-gray-50 dark:bg-gray-950">
       <div className="flex flex-col items-center gap-3">
         <Spinner size="lg" />
-        <p className="text-sm text-gray-500">Loading…</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">Loading…</p>
       </div>
     </div>
   )
@@ -207,8 +210,8 @@ export function CardHeader({ title, description, action }) {
   return (
     <div className="flex items-start justify-between mb-5">
       <div>
-        <h2 className="text-base font-semibold text-gray-900">{title}</h2>
-        {description && <p className="text-sm text-gray-500 mt-0.5">{description}</p>}
+        <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
+        {description && <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{description}</p>}
       </div>
       {action}
     </div>
@@ -220,12 +223,12 @@ export function Empty({ icon, title, description, action }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
       {icon && (
-        <div className="mb-4 rounded-full bg-gray-100 p-4 text-gray-400">
+        <div className="mb-4 rounded-full bg-gray-100 dark:bg-gray-800 p-4 text-gray-400 dark:text-gray-500">
           {icon}
         </div>
       )}
-      <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
-      {description && <p className="mt-1 text-sm text-gray-500 max-w-sm">{description}</p>}
+      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
+      {description && <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 max-w-sm">{description}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>
   )
@@ -246,16 +249,16 @@ export function Modal({ open, onClose, title, description, children, footer, siz
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className={cn('relative w-full bg-white rounded-xl shadow-dropdown border border-gray-200 flex flex-col max-h-[90vh]', sizes[size])}>
+      <div className={cn('relative w-full bg-white dark:bg-gray-900 rounded-xl shadow-dropdown border border-gray-200 dark:border-gray-800 flex flex-col max-h-[90vh]', sizes[size])}>
         {/* Header */}
-        <div className="flex items-start justify-between p-5 border-b border-gray-100">
+        <div className="flex items-start justify-between p-5 border-b border-gray-100 dark:border-gray-800">
           <div>
-            <h2 className="text-base font-semibold text-gray-900">{title}</h2>
-            {description && <p className="text-sm text-gray-500 mt-0.5">{description}</p>}
+            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
+            {description && <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{description}</p>}
           </div>
           <button
             onClick={onClose}
-            className="ml-4 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+            className="ml-4 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
           >
             <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
               <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -266,7 +269,7 @@ export function Modal({ open, onClose, title, description, children, footer, siz
         <div className="p-5 overflow-y-auto flex-1">{children}</div>
         {/* Footer */}
         {footer && (
-          <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-gray-100">
+          <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-gray-100 dark:border-gray-800">
             {footer}
           </div>
         )}
@@ -290,7 +293,7 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, message, confir
         </>
       }
     >
-      <p className="text-sm text-gray-600">{message}</p>
+      <p className="text-sm text-gray-600 dark:text-gray-400">{message}</p>
     </Modal>
   )
 }
@@ -303,14 +306,12 @@ export function Pagination({ page, totalPages, totalCount, pageSize, onPageChang
 
   return (
     <div className="flex items-center justify-between px-2 py-3">
-      <p className="text-sm text-gray-500">
-        Showing <span className="font-medium text-gray-700">{start}–{end}</span> of{' '}
-        <span className="font-medium text-gray-700">{totalCount}</span>
+      <p className="text-sm text-gray-500 dark:text-gray-400">
+        Showing <span className="font-medium text-gray-700 dark:text-gray-300">{start}–{end}</span> of{' '}
+        <span className="font-medium text-gray-700 dark:text-gray-300">{totalCount}</span>
       </p>
       <div className="flex items-center gap-1">
-        <Button variant="outline" size="sm" onClick={() => onPageChange(page - 1)} disabled={page <= 1}>
-          ←
-        </Button>
+        <Button variant="outline" size="sm" onClick={() => onPageChange(page - 1)} disabled={page <= 1}>←</Button>
         {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
           const p = i + Math.max(1, Math.min(page - 2, totalPages - 4))
           return (
@@ -319,9 +320,7 @@ export function Pagination({ page, totalPages, totalCount, pageSize, onPageChang
             </Button>
           )
         })}
-        <Button variant="outline" size="sm" onClick={() => onPageChange(page + 1)} disabled={page >= totalPages}>
-          →
-        </Button>
+        <Button variant="outline" size="sm" onClick={() => onPageChange(page + 1)} disabled={page >= totalPages}>→</Button>
       </div>
     </div>
   )
@@ -330,16 +329,16 @@ export function Pagination({ page, totalPages, totalCount, pageSize, onPageChang
 // ─── Table ────────────────────────────────────────────────────────────────
 export function Table({ columns, data, loading, sortBy, sortDirection, onSort, emptyMessage, rowKey }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-200">
+    <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-gray-200 bg-gray-50">
+          <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
             {columns.map(col => (
               <th
                 key={String(col.key)}
                 className={cn(
-                  'px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap',
-                  col.sortable && 'cursor-pointer hover:text-gray-700 select-none',
+                  'px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide whitespace-nowrap',
+                  col.sortable && 'cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 select-none',
                   col.align === 'right' && 'text-right',
                   col.align === 'center' && 'text-center',
                 )}
@@ -365,25 +364,23 @@ export function Table({ columns, data, loading, sortBy, sortDirection, onSort, e
             </tr>
           ) : data.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} className="text-center py-16 text-gray-400 text-sm">
+              <td colSpan={columns.length} className="text-center py-16 text-gray-400 dark:text-gray-500 text-sm">
                 {emptyMessage ?? 'No records found'}
               </td>
             </tr>
           ) : (
             data.map(row => (
-              <tr key={rowKey(row)} className="border-b border-gray-100 last:border-0 table-row-hover">
+              <tr key={rowKey(row)} className="border-b border-gray-100 dark:border-gray-800 last:border-0 table-row-hover">
                 {columns.map(col => (
                   <td
                     key={String(col.key)}
                     className={cn(
-                      'px-4 py-3 text-gray-700',
+                      'px-4 py-3 text-gray-700 dark:text-gray-300',
                       col.align === 'right' && 'text-right',
                       col.align === 'center' && 'text-center',
                     )}
                   >
-                    {col.render
-                      ? col.render(row)
-                      : String(row[String(col.key)] ?? '—')}
+                    {col.render ? col.render(row) : String(row[String(col.key)] ?? '—')}
                   </td>
                 ))}
               </tr>
@@ -397,10 +394,10 @@ export function Table({ columns, data, loading, sortBy, sortDirection, onSort, e
 
 // ─── Stats Card ───────────────────────────────────────────────────────────
 const statColors = {
-  brand: 'bg-brand-50 text-brand-600',
-  green: 'bg-green-50 text-green-600',
-  amber: 'bg-amber-50 text-amber-600',
-  red: 'bg-red-50 text-red-600',
+  brand: 'bg-brand-50 dark:bg-brand-950/50 text-brand-600 dark:text-brand-400',
+  green: 'bg-green-50 dark:bg-green-950/50 text-green-600 dark:text-green-400',
+  amber: 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400',
+  red: 'bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400',
 }
 
 export function StatCard({ label, value, subtext, icon, trend, color = 'brand' }) {
@@ -408,11 +405,11 @@ export function StatCard({ label, value, subtext, icon, trend, color = 'brand' }
     <div className="card p-5">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
-          <p className="mt-1.5 text-2xl font-semibold text-gray-900">{value}</p>
-          {subtext && <p className="text-xs text-gray-500 mt-1">{subtext}</p>}
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{label}</p>
+          <p className="mt-1.5 text-2xl font-semibold text-gray-900 dark:text-gray-100">{value}</p>
+          {subtext && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{subtext}</p>}
           {trend && (
-            <p className={cn('text-xs mt-1 font-medium', trend.positive ? 'text-green-600' : 'text-red-600')}>
+            <p className={cn('text-xs mt-1 font-medium', trend.positive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')}>
               {trend.positive ? '↑' : '↓'} {Math.abs(trend.value)}% vs last month
             </p>
           )}
@@ -440,14 +437,14 @@ export function SearchInput({ value, onChange, placeholder = 'Search…', classN
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         className={cn(
-          'h-9 w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 text-sm text-gray-900 placeholder-gray-400',
-          'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent hover:border-gray-400 transition-colors',
+          'h-9 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 pl-9 pr-3 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500',
+          'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent hover:border-gray-400 dark:hover:border-gray-600 transition-colors',
         )}
       />
       {value && (
         <button
           onClick={() => onChange('')}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
         >
           <svg className="w-3.5 h-3.5" viewBox="0 0 14 14" fill="none">
             <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>

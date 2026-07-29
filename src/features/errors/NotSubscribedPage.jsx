@@ -4,10 +4,10 @@ import { Lock } from 'lucide-react'
 export default function NotSubscribedPage() {
   return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
-      <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-5">
-        <Lock className="w-6 h-6 text-gray-400" />
+      <div className="w-14 h-14 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-5">
+        <Lock className="w-6 h-6 text-gray-400 dark:text-gray-500" />
       </div>
-      <h1 className="text-xl font-semibold text-gray-900 mb-2">Module not available</h1>
+      <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Module not available</h1>
       <p className="text-sm text-gray-500 max-w-sm mb-6">
         Your organisation hasn't subscribed to this module. Contact your administrator to enable access.
       </p>

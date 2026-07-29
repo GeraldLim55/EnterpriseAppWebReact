@@ -25,7 +25,7 @@ export default function ProfilesPage() {
             {getInitials(row.firstName, row.lastName, row.username)}
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-900">{row.firstName} {row.lastName}</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{row.firstName} {row.lastName}</p>
             <p className="text-xs text-gray-400">{row.username}</p>
           </div>
         </div>

@@ -55,7 +55,7 @@ function Toggle({ checked, onChange, label }) {
           }`}
         />
       </button>
-      {label && <span className="text-sm text-gray-700">{label}</span>}
+      {label && <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>}
     </label>
   )
 }
@@ -127,7 +127,7 @@ export default function LocationMaintenancePage() {
               : <MapPin className="w-4 h-4 text-brand-400" />}
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-900">{row.name}</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{row.name}</p>
             {row.city && <p className="text-xs text-gray-400">{[row.city, row.state, row.country].filter(Boolean).join(', ')}</p>}
           </div>
         </div>
@@ -170,7 +170,7 @@ export default function LocationMaintenancePage() {
         <div className="flex items-center gap-1">
           <button
             onClick={() => setEditLocation(row)}
-            className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+            className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
             title="Edit"
           >
             <Pencil className="w-3.5 h-3.5" />
@@ -357,7 +357,7 @@ function LocationModal({ open, location, onClose, onSuccess }) {
 
         <div className="flex flex-col gap-3 pt-1 border-t border-gray-100">
           <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-gray-700">Status</span>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Status</span>
             <Controller
               name="isActive"
               control={control}
@@ -368,7 +368,7 @@ function LocationModal({ open, location, onClose, onSuccess }) {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-gray-700">Default location</span>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Default location</span>
             <Controller
               name="isDefault"
               control={control}

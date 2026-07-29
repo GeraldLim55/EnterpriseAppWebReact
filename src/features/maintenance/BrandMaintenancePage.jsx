@@ -47,7 +47,7 @@ function Toggle({ checked, onChange, label }) {
           }`}
         />
       </button>
-      {label && <span className="text-sm text-gray-700">{label}</span>}
+      {label && <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>}
     </label>
   )
 }
@@ -114,7 +114,7 @@ export default function BrandMaintenancePage() {
               <Tag className="w-4 h-4 text-brand-400" />
             </div>
           )}
-          <span className="text-sm font-medium text-gray-900">{row.name}</span>
+          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{row.name}</span>
         </div>
       ),
     },
@@ -147,7 +147,7 @@ export default function BrandMaintenancePage() {
         <div className="flex items-center gap-1">
           <button
             onClick={() => setEditBrand(row)}
-            className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+            className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
             title="Edit"
           >
             <Pencil className="w-3.5 h-3.5" />
@@ -319,7 +319,7 @@ function BrandModal({ open, brand, onClose, onSuccess }) {
           {...register('description')}
         />
         <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-gray-700">Status</span>
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Status</span>
           <Controller
             name="isActive"
             control={control}

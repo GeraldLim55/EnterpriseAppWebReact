@@ -97,7 +97,7 @@ export default function DashboardPage() {
                         <p className="text-gray-300">{m.invoiceCount} invoices</p>
                       </div>
                       {/* Bar */}
-                      <div className="w-full bg-gray-100 rounded-t-md relative flex items-end" style={{ height: '160px' }}>
+                      <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-t-md relative flex items-end" style={{ height: '160px' }}>
                         <div
                           className="w-full bg-brand-500 rounded-t-md transition-all duration-500 group-hover:bg-brand-600"
                           style={{ height: `${Math.max(height, 2)}%` }}
