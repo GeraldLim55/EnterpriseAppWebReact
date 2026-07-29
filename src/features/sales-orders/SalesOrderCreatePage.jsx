@@ -30,7 +30,6 @@ const schema = z.object({
   customerPhone: z.string().optional(),
   customerPhoneCountryCode: z.string().optional(),
   customerAddress: z.string().optional(),
-  taxRate: z.coerce.number().min(0).max(100),
   discountAmount: z.coerce.number().min(0),
   notes: z.string().optional(),
   items: z.array(itemSchema).min(1, 'At least one item is required'),
@@ -60,7 +59,6 @@ export default function SalesOrderCreatePage() {
     resolver: zodResolver(schema),
     defaultValues: {
       orderDate: new Date().toISOString().split('T')[0],
-      taxRate: 6,
       discountAmount: 0,
       customerPhoneCountryCode: '60',
       items: [{ itemName: '', quantity: 1, unitPrice: 0, discountPercent: 0 }],
@@ -79,7 +77,6 @@ export default function SalesOrderCreatePage() {
         customerPhoneCountryCode: existingSO.customerPhoneCountryCode ?? '60',
         customerPhone: existingSO.customerPhone ?? '',
         customerAddress: existingSO.customerAddress ?? '',
-        taxRate: existingSO.taxRate,
         discountAmount: existingSO.discountAmount,
         notes: existingSO.notes ?? '',
         items: existingSO.items.map(i => ({
@@ -95,7 +92,6 @@ export default function SalesOrderCreatePage() {
   }, [existingSO, isEdit, reset])
 
   const watchedItems = watch('items')
-  const watchedTax = watch('taxRate')
   const watchedDiscount = watch('discountAmount')
 
   const grossTotal = watchedItems?.reduce((sum, d) =>
@@ -108,8 +104,7 @@ export default function SalesOrderCreatePage() {
 
   const lineDiscountTotal = grossTotal - subTotal
   const masterDiscount = Number(watchedDiscount) || 0
-  const taxAmount = subTotal * ((Number(watchedTax) || 0) / 100)
-  const total = subTotal + taxAmount - masterDiscount
+  const total = subTotal - masterDiscount
 
   const mutation = useMutation({
     mutationFn: (data) => isEdit
@@ -137,7 +132,7 @@ export default function SalesOrderCreatePage() {
   if (isEdit && !existingSO) return <Empty title="Sales order not found" />
 
   const tabErrors = {
-    Order: !!(errors.orderDate || errors.deliveryDate || errors.taxRate),
+    Order: !!(errors.orderDate || errors.deliveryDate),
     Customer: !!(errors.customerName || errors.customerEmail),
   }
 
@@ -185,11 +180,6 @@ export default function SalesOrderCreatePage() {
                   label="Delivery date" type="date"
                   error={errors.deliveryDate?.message}
                   {...register('deliveryDate')}
-                />
-                <Input
-                  label="Tax rate (%)" type="number" step="0.1"
-                  error={errors.taxRate?.message}
-                  {...register('taxRate')}
                 />
                 <Input
                   label="Discount (MYR)" type="number" step="0.01"
@@ -295,7 +285,7 @@ export default function SalesOrderCreatePage() {
                         <div className="col-span-4 sm:col-span-1 text-right text-sm font-semibold text-gray-800 dark:text-gray-200 pr-1">
                           {formatCurrency(lineTotal)}
                         </div>
-                        {/* Remove — always show, no minimum enforcement here (schema handles it) */}
+                        {/* Remove */}
                         <div className="col-span-1 flex justify-end">
                           <button
                             type="button"
@@ -331,9 +321,6 @@ export default function SalesOrderCreatePage() {
                   )}
                   <div className="flex justify-between text-gray-500">
                     <span>Subtotal</span><span className="font-medium text-gray-800 dark:text-gray-200">{formatCurrency(subTotal)}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-500">
-                    <span>Tax ({Number(watchedTax) || 0}%)</span><span className="font-medium text-gray-800 dark:text-gray-200">{formatCurrency(taxAmount)}</span>
                   </div>
                   {masterDiscount > 0 && (
                     <div className="flex justify-between text-gray-500">

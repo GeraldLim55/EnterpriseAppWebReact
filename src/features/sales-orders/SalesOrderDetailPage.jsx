@@ -169,9 +169,6 @@ export default function SalesOrderDetailPage() {
                   <div className="flex justify-between text-gray-600 dark:text-gray-400">
                     <span>Subtotal</span><span>{formatCurrency(so.subTotal)}</span>
                   </div>
-                  <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                    <span>Tax ({so.taxRate}%)</span><span>{formatCurrency(so.taxAmount)}</span>
-                  </div>
                   {so.discountAmount > 0 && (
                     <div className="flex justify-between text-gray-600 dark:text-gray-400">
                       <span>Discount</span><span>-{formatCurrency(so.discountAmount)}</span>
