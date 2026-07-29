@@ -445,6 +445,7 @@ export function InvoiceCreatePage() {
   const [confirmReplace, setConfirmReplace] = useState(null)
   const [showSoPickerCreate, setShowSoPickerCreate] = useState(false)
   const [linkedSoIds, setLinkedSoIds] = useState([])
+  const [linkedSoCustomerName, setLinkedSoCustomerName] = useState(null)
 
   const { data: items = [] } = useQuery({
     queryKey: ['items-lookup'],
@@ -969,11 +970,23 @@ export function InvoiceCreatePage() {
           open
           onClose={() => setShowSoPickerCreate(false)}
           alreadyLinkedIds={linkedSoIds}
+          filterCustomerName={linkedSoCustomerName}
           onPopulateItems={async (soIds) => {
+            let isFirst = true
             for (const soId of soIds) {
               try {
                 const res = await salesOrdersApi.getById(soId)
                 const so = res.data.data
+                if (isFirst) {
+                  setValue('customerName', so.customerName ?? '')
+                  setValue('customerEmail', so.customerEmail ?? '')
+                  setValue('customerPhoneCountryCode', so.customerPhoneCountryCode ?? '60')
+                  setValue('customerPhone', so.customerPhone ?? '')
+                  setValue('customerAddress', so.customerAddress ?? '')
+                  setLinkedSoCustomerName(so.customerName ?? null)
+                  isFirst = false
+                }
+                const masterLocationId = getValues('locationId')
                 ;(so.items ?? []).forEach(item => {
                   append({
                     itemId: item.itemId ?? null,
@@ -982,10 +995,15 @@ export function InvoiceCreatePage() {
                     quantity: item.quantity,
                     unitPrice: item.unitPrice,
                     discountPercent: item.discountPercent,
+                    locationId: item.locationId || masterLocationId || undefined,
                   })
                 })
               } catch { /* ignore individual SO fetch errors */ }
             }
+            // remove blank rows left over before SO items were appended
+            const details = getValues('details')
+            const emptyIndices = details.reduce((acc, d, i) => (!d.itemName?.trim() ? [...acc, i] : acc), [])
+            if (emptyIndices.length) remove(emptyIndices)
           }}
           onConfirm={(soIds) => {
             setLinkedSoIds(prev => [...new Set([...prev, ...soIds])])
@@ -1206,14 +1224,9 @@ export function InvoiceDetailPage() {
 
         {/* Source Documents card */}
         <Card>
-          <div className="flex items-center justify-between px-5 pt-4 pb-2">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-              <Link2 className="w-4 h-4 text-gray-400" />
-              Source Documents
-            </h3>
-            <Button size="xs" variant="outline" leftIcon={<Plus className="w-3 h-3" />} onClick={() => setShowSoPicker(true)}>
-              Transfer from Sales Order
-            </Button>
+          <div className="flex items-center gap-2 px-5 pt-4 pb-2">
+            <Link2 className="w-4 h-4 text-gray-400" />
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Source Documents</h3>
           </div>
           {(invoice.sourceDocuments ?? []).length === 0 ? (
             <p className="text-sm text-gray-400 px-5 pb-4">No source documents linked.</p>
@@ -1236,15 +1249,6 @@ export function InvoiceDetailPage() {
             </div>
           )}
         </Card>
-
-        {showSoPicker && (
-          <SalesOrderPickerModal
-            open
-            onClose={() => setShowSoPicker(false)}
-            alreadyLinkedIds={(invoice.sourceDocuments ?? []).map(d => d.fromId)}
-            onConfirm={(soIds) => { linkSoMutation.mutate(soIds); setShowSoPicker(false) }}
-          />
-        )}
 
         {/* Row 2 — Line items (full width, mirrors create page) */}
         <Card>
@@ -1347,12 +1351,7 @@ export function InvoiceEditPage() {
   const [showResendModal, setShowResendModal] = useState(false)
   const [pendingSave, setPendingSave] = useState(null)
   const [showSoPicker, setShowSoPicker] = useState(false)
-
-  const linkSoMutation = useMutation({
-    mutationFn: (soIds) => invoicesApi.linkSalesOrders(Number(id), soIds),
-    onSuccess: () => { toast.success('Sales orders linked'); qc.invalidateQueries({ queryKey: ['invoice', id] }) },
-    onError: (err) => toast.error(err?.response?.data?.message ?? 'Failed to link'),
-  })
+  const [linkedSoIds, setLinkedSoIds] = useState([])
 
   const { data: invoice, isLoading: loadingInvoice } = useQuery({
     queryKey: ['invoice', id],
@@ -1460,6 +1459,7 @@ export function InvoiceEditPage() {
       id: Number(id),
       status: invoice.status,
       _resend: resend,
+      linkedSalesOrderIds: linkedSoIds.length ? linkedSoIds : undefined,
     }
     saveMutation.mutate(payload)
   }
@@ -1639,6 +1639,82 @@ export function InvoiceEditPage() {
             )}
           </Card>
 
+          {/* Source Documents card */}
+          <Card>
+            <div className="flex items-center justify-between px-5 pt-4 pb-2">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <Link2 className="w-4 h-4 text-gray-400" />
+                Source Documents
+              </h3>
+              <Button size="xs" variant="outline" leftIcon={<Plus className="w-3 h-3" />} type="button" onClick={() => setShowSoPicker(true)}>
+                Transfer from Sales Order
+              </Button>
+            </div>
+            {(invoice?.sourceDocuments ?? []).length === 0 && linkedSoIds.length === 0 ? (
+              <p className="text-sm text-gray-400 px-5 pb-4">No source documents linked.</p>
+            ) : (
+              <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                {(invoice?.sourceDocuments ?? []).map(doc => (
+                  <div key={doc.id} className="flex items-center gap-3 px-5 py-3">
+                    <FileText className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 flex-1">
+                      {doc.fromDocName} — {doc.fromDocNo}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/${doc.fromDocName === 'SO' ? 'sales-orders' : 'invoices'}/${doc.fromId}`)}
+                      className="text-xs text-brand-600 dark:text-brand-400 hover:underline font-medium"
+                    >
+                      View
+                    </button>
+                  </div>
+                ))}
+                {linkedSoIds.map(soId => (
+                  <div key={soId} className="flex items-center gap-3 px-5 py-3">
+                    <FileText className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 flex-1">
+                      SO #{soId}
+                    </span>
+                    <span className="text-xs text-amber-600 dark:text-amber-400">Pending save</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          {showSoPicker && (
+            <SalesOrderPickerModal
+              open
+              onClose={() => setShowSoPicker(false)}
+              alreadyLinkedIds={[...(invoice?.sourceDocuments ?? []).map(d => d.fromId), ...linkedSoIds]}
+              filterCustomerName={invoice?.customerName}
+              onPopulateItems={async (soIds) => {
+                for (const soId of soIds) {
+                  try {
+                    const res = await salesOrdersApi.getById(soId)
+                    const so = res.data.data
+                    const masterLocationId = getValues('locationId')
+                    ;(so.items ?? []).forEach(item => {
+                      append({
+                        itemId: item.itemId ?? null,
+                        itemName: item.itemName,
+                        description: item.description ?? '',
+                        quantity: item.quantity,
+                        unitPrice: item.unitPrice,
+                        discountPercent: item.discountPercent,
+                        locationId: item.locationId || masterLocationId || undefined,
+                      })
+                    })
+                  } catch { /* ignore */ }
+                }
+              }}
+              onConfirm={(soIds) => {
+                setLinkedSoIds(prev => [...new Set([...prev, ...soIds])])
+                setShowSoPicker(false)
+              }}
+            />
+          )}
+
           {/* Row 2 — Line items */}
           <Card>
             <div className="flex items-center justify-between mb-4">
@@ -1809,7 +1885,7 @@ export function InvoiceEditPage() {
 }
 
 // ─── Sales Order Picker Modal ─────────────────────────────────────────────
-export function SalesOrderPickerModal({ open, onClose, alreadyLinkedIds = [], onConfirm, onPopulateItems }) {
+export function SalesOrderPickerModal({ open, onClose, alreadyLinkedIds = [], onConfirm, onPopulateItems, filterCustomerName }) {
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState([])
 
@@ -1819,7 +1895,15 @@ export function SalesOrderPickerModal({ open, onClose, alreadyLinkedIds = [], on
     enabled: open,
   })
 
-  const rows = (res?.data ?? []).filter(so => !alreadyLinkedIds.includes(so.id))
+  const allRows = (res?.data ?? []).filter(so => !alreadyLinkedIds.includes(so.id))
+
+  // Determine the locked customer: from parent prop, or from the first row the user ticks this session
+  const firstSelected = allRows.find(so => selected.includes(so.id))
+  const activeCustomer = filterCustomerName ?? firstSelected?.customerName ?? null
+
+  const rows = activeCustomer
+    ? allRows.filter(so => so.customerName === activeCustomer)
+    : allRows
 
   const toggle = (id) => setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
 
@@ -1841,6 +1925,11 @@ export function SalesOrderPickerModal({ open, onClose, alreadyLinkedIds = [], on
     >
       <div className="space-y-3">
         <SearchInput value={search} onChange={setSearch} placeholder="Search orders or customers…" className="w-full" />
+        {activeCustomer && (
+          <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 rounded-lg">
+            Showing SOs for <span className="font-semibold">{activeCustomer}</span> only
+          </p>
+        )}
         {isLoading ? (
           <div className="flex justify-center py-8"><Spinner /></div>
         ) : rows.length === 0 ? (

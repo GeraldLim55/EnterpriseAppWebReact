@@ -20,7 +20,6 @@ const NAV_ITEMS = [
   { label: 'Sales Orders', href: '/sales-orders', icon: ShoppingCart, moduleKey: MODULES.Erp },
   { label: 'Users', href: '/users', icon: Users, minLevel: ROLE_LEVELS.Admin },
   { label: 'Profile', href: '/profile', icon: Contact, moduleKey: MODULES.Profile },
-  { label: 'Account', href: '/account', icon: UserCircle },
 ]
 
 const NAV_GROUPS = [
@@ -39,13 +38,13 @@ const NAV_GROUPS = [
   {
     label: 'Settings',
     icon: Settings,
-    basePath: '/settings',
-    minLevel: ROLE_LEVELS.Admin,
+    basePath: '/settings,/account',
     children: [
-      { label: 'General', href: '/settings', icon: Settings },
-      { label: 'Company Profile', href: '/settings/company', icon: Building2 },
-      { label: 'Invoice Settings', href: '/settings/invoice', icon: FileText, moduleKey: MODULES.Erp },
-      { label: 'Sales Order Settings', href: '/settings/sales-orders', icon: ShoppingCart, moduleKey: MODULES.Erp },
+      { label: 'General', href: '/settings', icon: Settings, minLevel: ROLE_LEVELS.Admin },
+      { label: 'Company Profile', href: '/settings/company', icon: Building2, minLevel: ROLE_LEVELS.Admin },
+      { label: 'Invoice Settings', href: '/settings/invoice', icon: FileText, moduleKey: MODULES.Erp, minLevel: ROLE_LEVELS.Admin },
+      { label: 'Sales Order Settings', href: '/settings/sales-orders', icon: ShoppingCart, moduleKey: MODULES.Erp, minLevel: ROLE_LEVELS.Admin },
+      { label: 'Account', href: '/account', icon: UserCircle },
     ],
   },
 ]
@@ -53,9 +52,11 @@ const NAV_GROUPS = [
 // ─── Nav Group (expandable dropdown) ─────────────────────────────────────
 function NavGroup({ group, collapsed, onChildClick }) {
   const location = useLocation()
-  const { hasModule } = useAuth()
-  const visibleChildren = group.children.filter(c => !c.moduleKey || hasModule(c.moduleKey))
-  const isGroupActive = location.pathname.startsWith(group.basePath)
+  const { hasModule, hasMinLevel } = useAuth()
+  const visibleChildren = group.children.filter(c =>
+    (!c.moduleKey || hasModule(c.moduleKey)) && (!c.minLevel || hasMinLevel(c.minLevel))
+  )
+  const isGroupActive = group.basePath.split(',').some(p => location.pathname.startsWith(p))
   const [open, setOpen] = useState(isGroupActive)
 
   if (!visibleChildren.length) return null
