@@ -106,6 +106,9 @@ export const invoicesApi = {
   delete: (id) =>
     client.delete(`/invoices/${id}`),
 
+  linkSalesOrders: (id, salesOrderIds) =>
+    client.post(`/invoices/${id}/link-salesorders`, { salesOrderIds }),
+
   getSummary: (from, to) =>
     client.get('/invoices/summary', { params: { from, to } }),
 
