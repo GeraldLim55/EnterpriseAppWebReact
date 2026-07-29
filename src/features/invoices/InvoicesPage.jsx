@@ -1932,6 +1932,15 @@ export function InvoiceEditPage() {
             >
               Save invoice
             </Button>
+            {invoice.status !== 0 && (
+              <Button
+                type="button"
+                loading={saveMutation.isPending}
+                onClick={handleSubmit(d => handleSave(d, true), e => toastFormErrors(e, toast))}
+              >
+                Save & Send Email
+              </Button>
+            )}
           </div>
 
         </div>
